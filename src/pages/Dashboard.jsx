@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import Sidebar from '../components/Sidebar'
-import TopBar from '../components/TopBar'
+import 'leaflet/dist/leaflet.css'
+import { useState } from 'react'
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import AnimatedBuses from '../components/AnimatedBuses'
 import BusInspection from '../components/BusInspection'
 import BusRating from '../components/BusRating'
-import AnimatedBuses from '../components/AnimatedBuses'
+import Sidebar from '../components/Sidebar'
+import TopBar from '../components/TopBar'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import {
   Table,
@@ -26,7 +26,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
 
-// Dummy bus data with locations and photos
+// Dummy bus data with locations and photos (IR sensor crowd: Low/Medium/High)
 const dummyBuses = [
   { 
     id: "BUS101", 
@@ -36,7 +36,8 @@ const dummyBuses = [
     location: [15.3893, 73.8149], // Vasco area
     photo: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200&h=200&fit=crop",
     capacity: 50,
-    occupied: 42 // 84% - Full
+    occupied: 42, // 84% - Full
+    crowdLevel: "High" // IR sensor: Low / Medium / High
   },
   { 
     id: "BUS204", 
@@ -46,7 +47,8 @@ const dummyBuses = [
     location: [15.2993, 73.9570], // Margao area
     photo: "https://images.unsplash.com/photo-1516528387618-afa90b13e000?w=200&h=200&fit=crop",
     capacity: 50,
-    occupied: 15 // 30% - Empty/Moderate
+    occupied: 15, // 30% - Empty
+    crowdLevel: "Low"
   },
   { 
     id: "BUS330", 
@@ -56,7 +58,8 @@ const dummyBuses = [
     location: [15.3500, 73.9000], // Verna area
     photo: "https://images.unsplash.com/photo-1557223562-6c77ef16210f?w=200&h=200&fit=crop",
     capacity: 50,
-    occupied: 28 // 56% - Moderate
+    occupied: 28, // 56% - Moderate
+    crowdLevel: "Medium"
   }
 ]
 
@@ -194,6 +197,16 @@ const Dashboard = () => {
                                   {bus.eta}
                                 </span>
                               </div>
+                              <div className="mt-2 flex items-center justify-between">
+                                <span className="text-xs text-gray-500">Crowd:</span>
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                                  bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
+                                  bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
+                                  "bg-red-100 text-red-700"
+                                }`}>
+                                  {bus.crowdLevel}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </CardContent>
@@ -265,7 +278,10 @@ const Dashboard = () => {
                                 <span className="font-semibold">Status:</span> {bus.status}
                               </p>
                               <p className="text-xs">
-                                <span className="font-semibold">ETA:</span> {bus.eta}
+                                <span className="font-semibold">ETA (AI):</span> {bus.eta}
+                              </p>
+                              <p className="text-xs">
+                                <span className="font-semibold">Crowd:</span> {bus.crowdLevel}
                               </p>
                             </div>
                           </Popup>
@@ -304,10 +320,65 @@ const Dashboard = () => {
                             bus.status === "Delayed" ? "text-red-600" :
                             "text-yellow-600"
                           }`}>{bus.eta}</p>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded mt-1 inline-block ${
+                            bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
+                            bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
+                            "bg-red-100 text-red-700"
+                          }`}>{bus.crowdLevel}</span>
                         </div>
                       </div>
                     </motion.div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )
+
+      case 'Notifications':
+        return (
+          <div className="max-w-7xl mx-auto">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-2xl font-semibold text-gray-800">
+                  Smart Notifications
+                </CardTitle>
+                <p className="text-sm text-gray-500 mt-1">
+                  Get alerts when the bus is near or a less crowded option is available
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-xl">🚌</span>
+                      <div>
+                        <p className="font-semibold text-green-800">Bus Approaching</p>
+                        <p className="text-sm text-green-700 mt-1">BUS330 is 2 min away from your stop • Vasco → PCCE</p>
+                        <p className="text-xs text-gray-500 mt-2">Just now</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-xl">💡</span>
+                      <div>
+                        <p className="font-semibold text-blue-800">Less Crowded Option</p>
+                        <p className="text-sm text-blue-700 mt-1">BUS204 has Low crowd level • Arriving in 15 min</p>
+                        <p className="text-xs text-gray-500 mt-2">5 min ago</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-xl">⏰</span>
+                      <div>
+                        <p className="font-semibold text-gray-800">Schedule Update</p>
+                        <p className="text-sm text-gray-600 mt-1">BUS101 running 5 min late due to traffic</p>
+                        <p className="text-xs text-gray-500 mt-2">12 min ago</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -322,8 +393,9 @@ const Dashboard = () => {
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Bus Location Map
+                  Live Bus Tracking (GPS)
                 </CardTitle>
+                <p className="text-sm text-gray-500 mt-1">Real-time bus locations on map</p>
               </CardHeader>
               <CardContent>
                 <AnimatedBuses />
@@ -361,7 +433,8 @@ const Dashboard = () => {
                     <TableRow>
                       <TableHead className="w-[150px]">Bus ID</TableHead>
                       <TableHead>Route</TableHead>
-                      <TableHead className="text-center">ETA</TableHead>
+                      <TableHead className="text-center">ETA (AI)</TableHead>
+                      <TableHead className="text-center">Crowd</TableHead>
                       <TableHead className="text-right">Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -388,6 +461,15 @@ const Dashboard = () => {
                             "text-yellow-600"
                           }`}>
                             {bus.eta}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                              bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
+                              bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
+                              "bg-red-100 text-red-700"
+                            }`}>
+                              {bus.crowdLevel}
+                            </span>
                           </TableCell>
                           <TableCell className={`text-right ${getStatusColor(bus.status)}`}>
                             {bus.status}

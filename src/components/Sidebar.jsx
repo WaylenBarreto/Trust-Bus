@@ -2,15 +2,26 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from './Logo'
 
-const Sidebar = ({ activePage, setActivePage }) => {
+const Sidebar = ({ activePage, setActivePage, userType = 'public' }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
 
-  const menuItems = [
+  const publicMenuItems = [
     { id: 'Home', label: 'Home', icon: '🏠' },
     { id: 'Bus Status', label: 'Bus Status', icon: '🚌' },
     { id: 'Routes', label: 'Routes', icon: '🗺️' },
+    { id: 'Notifications', label: 'Notifications', icon: '🔔' },
   ]
+
+  const parentMenuItems = [
+    { id: 'Home', label: 'Home', icon: '🏠' },
+    { id: 'Alerts', label: 'Alerts', icon: '🚨' },
+    { id: 'Live Track', label: 'Live Track', icon: '📍' },
+    { id: 'Driver Performance', label: 'Driver Performance', icon: '📊' },
+    { id: 'Safety Reports', label: 'Safety Reports', icon: '📋' },
+  ]
+
+  const menuItems = userType === 'parent' ? parentMenuItems : publicMenuItems
 
   const handleLogout = () => {
     // Navigate to login page

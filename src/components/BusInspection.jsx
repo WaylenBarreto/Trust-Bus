@@ -15,20 +15,21 @@ const BusInspection = ({ bus, onClose, onShowRating }) => {
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
 
-  // Calculate capacity status
+  // Calculate capacity status (IR sensor: Low/Medium/High crowd level)
   const getCapacityStatus = () => {
     const capacity = bus.capacity || 50
     const occupied = bus.occupied || 0
     const percentage = (occupied / capacity) * 100
+    const crowdLevel = percentage >= 80 ? "High" : percentage >= 50 ? "Medium" : "Low"
 
     if (percentage >= 80) {
-      return { status: "Full", color: "red", bgColor: "bg-red-100", textColor: "text-red-700" }
+      return { status: "Full", crowdLevel, color: "red", bgColor: "bg-red-100", textColor: "text-red-700" }
     } else if (percentage >= 50) {
-      return { status: "Moderate", color: "yellow", bgColor: "bg-yellow-100", textColor: "text-yellow-700" }
+      return { status: "Moderate", crowdLevel, color: "yellow", bgColor: "bg-yellow-100", textColor: "text-yellow-700" }
     } else if (percentage >= 20) {
-      return { status: "Available", color: "green", bgColor: "bg-green-100", textColor: "text-green-700" }
+      return { status: "Available", crowdLevel, color: "green", bgColor: "bg-green-100", textColor: "text-green-700" }
     } else {
-      return { status: "Empty", color: "gray", bgColor: "bg-gray-100", textColor: "text-gray-700" }
+      return { status: "Empty", crowdLevel, color: "gray", bgColor: "bg-gray-100", textColor: "text-gray-700" }
     }
   }
 
@@ -223,6 +224,7 @@ const BusInspection = ({ bus, onClose, onShowRating }) => {
                   <span className={`text-xs font-semibold px-3 py-1 rounded-full ${capacityInfo.bgColor} ${capacityInfo.textColor}`}>
                     {capacityInfo.status}
                   </span>
+                  <span className="text-xs text-gray-500">Crowd: {capacityInfo.crowdLevel}</span>
                 </div>
               </div>
               <Button
