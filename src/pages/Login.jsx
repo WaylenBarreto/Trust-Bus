@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { loginUser } from "../api/auth"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input"
@@ -18,32 +19,16 @@ const Login = () => {
     setLoading(true)
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      })
+      const res = await loginUser({ email, password })
+      const data = res.data
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.message)
-      }
-
-      // ✅ SAVE TOKEN
+      // SAVE TOKEN + USER
       localStorage.setItem("token", data.token)
-
-      // ✅🔥 SAVE FULL USER DATA (THIS WAS MISSING)
       localStorage.setItem("user", JSON.stringify(data.user))
 
       alert("Login successful 🎉")
 
-      // 🔀 Redirect based on role
+      // Redirect based on role
       if (data.user.role === "parent") {
         navigate("/parent-dashboard")
       } else {
@@ -51,7 +36,7 @@ const Login = () => {
       }
 
     } catch (err) {
-      setError(err.message)
+      setError(err.response?.data?.message || "Login failed")
     } finally {
       setLoading(false)
     }

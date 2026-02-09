@@ -6,6 +6,21 @@ import Login from './pages/Login'
 import ParentDashboard from './pages/ParentDashboard'
 import Signup from './pages/Signup'
 
+// 🔒 Protected Route Component
+const ProtectedRoute = ({ children, role }) => {
+  const token = localStorage.getItem("token")
+  const user = JSON.parse(localStorage.getItem("user"))
+
+  if (!token) return <Navigate to="/login" />
+
+  // Role protection
+  if (role && user?.role !== role) {
+    return <Navigate to="/login" />
+  }
+
+  return children
+}
+
 function App() {
   const [isLoading, setIsLoading] = useState(true)
 
@@ -21,10 +36,31 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Public routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/parent-dashboard" element={<ParentDashboard />} />
+
+        {/* Public User Dashboard */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute role="public">
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Parent Dashboard */}
+        <Route
+          path="/parent-dashboard"
+          element={
+            <ProtectedRoute role="parent">
+              <ParentDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Default route */}
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

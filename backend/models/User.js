@@ -21,7 +21,6 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-    minlength: [8, "Password must be strong and at least 8 characters long"],
   },
 
   role: {
@@ -35,18 +34,19 @@ const userSchema = new mongoose.Schema({
     default: "",
   },
 
+  // ⭐ NEW FIELD
+  studentId: {
+    type: String,
+    default: "",
+  },
+
   isEmailVerified: {
     type: Boolean,
     default: false,
   },
 
-  emailOTP: {
-    type: String,
-  },
-
-  emailOTPExpires: {
-    type: Date,
-  },
+  emailOTP: String,
+  emailOTPExpires: Date,
 
 }, { timestamps: true })
 
