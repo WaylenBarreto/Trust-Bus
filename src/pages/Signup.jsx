@@ -20,10 +20,21 @@ const Signup = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+
+  // ⭐ Email validator (added)
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
   // REGISTER
   const handleSignup = async (e) => {
     e.preventDefault()
     setError("")
+
+    // ⭐ EMAIL VALIDATION ADDED
+    if (!isValidEmail(email)) {
+      return setError("Please enter a valid email address")
+    }
+
     try {
       setLoading(true)
 
@@ -80,7 +91,6 @@ const Signup = () => {
 
         <CardContent>
 
-          {/* RED ERROR MESSAGE */}
           {error && (
             <p className="text-red-500 text-sm text-center mb-3">{error}</p>
           )}
@@ -109,30 +119,13 @@ const Signup = () => {
 
               {role === "parent" && (
                 <>
-                  <Input
-                    placeholder="Child Name"
-                    value={childName}
-                    onChange={(e)=>setChildName(e.target.value)}
-                    required
-                  />
-                  <Input
-                    placeholder="Student ID"
-                    value={studentId}
-                    onChange={(e)=>setStudentId(e.target.value)}
-                    required
-                  />
+                  <Input placeholder="Child Name" value={childName} onChange={(e)=>setChildName(e.target.value)} required />
+                  <Input placeholder="Student ID" value={studentId} onChange={(e)=>setStudentId(e.target.value)} required />
                 </>
               )}
 
-              <Input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={e=>setPassword(e.target.value)}
-                required
-              />
+              <Input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
 
-              {/* PASSWORD HELPER TEXT */}
               <p className="text-xs text-gray-500 text-center">
                 Password must contain uppercase, lowercase, number & special character
               </p>
@@ -143,8 +136,7 @@ const Signup = () => {
 
               <p className="text-center text-sm text-gray-600">
                 Already have an account?{" "}
-                <span onClick={()=>navigate('/login')}
-                  className="text-green-600 cursor-pointer hover:underline">
+                <span onClick={()=>navigate('/login')} className="text-green-600 cursor-pointer hover:underline">
                   Login
                 </span>
               </p>
@@ -152,19 +144,12 @@ const Signup = () => {
             </form>
           ) : (
             <form onSubmit={handleVerifyOTP} className="space-y-4">
-              <Input
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={e=>setOtp(e.target.value)}
-                required
-              />
-
+              <Input placeholder="Enter OTP" value={otp} onChange={e=>setOtp(e.target.value)} required />
               <Button className="w-full" size="lg" disabled={loading}>
                 {loading ? "Verifying..." : "Verify Email"}
               </Button>
 
-              <p onClick={handleResendOTP}
-                 className="text-center text-sm text-green-600 cursor-pointer">
+              <p onClick={handleResendOTP} className="text-center text-sm text-green-600 cursor-pointer">
                 Resend OTP
               </p>
             </form>

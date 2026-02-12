@@ -13,20 +13,32 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  // ⭐ Email validator
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
   const handleLogin = async (e) => {
     e.preventDefault()
     setError("")
-    setLoading(true)
+
+    // ⭐ VALIDATIONS
+    if (!email || !password) {
+      return setError("Please fill all fields")
+    }
+
+    if (!isValidEmail(email)) {
+      return setError("Enter a valid email address")
+    }
 
     try {
+      setLoading(true)
+
       const res = await loginUser({ email, password })
       const data = res.data
 
       // SAVE TOKEN + USER
       localStorage.setItem("token", data.token)
       localStorage.setItem("user", JSON.stringify(data.user))
-
-      alert("Login successful 🎉")
 
       // Redirect based on role
       if (data.user.role === "parent") {
@@ -36,7 +48,7 @@ const Login = () => {
       }
 
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed")
+      setError(err.response?.data?.message || "Invalid email or password")
     } finally {
       setLoading(false)
     }
@@ -54,6 +66,7 @@ const Login = () => {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
 
+            {/* ⭐ Error message */}
             {error && (
               <div className="text-red-500 text-sm text-center">
                 {error}
@@ -65,7 +78,6 @@ const Login = () => {
               placeholder="Email"
               value={email}
               onChange={(e)=>setEmail(e.target.value)}
-              required
             />
 
             <Input
@@ -73,7 +85,6 @@ const Login = () => {
               placeholder="Password"
               value={password}
               onChange={(e)=>setPassword(e.target.value)}
-              required
             />
 
             <Button className="w-full" size="lg" disabled={loading}>
