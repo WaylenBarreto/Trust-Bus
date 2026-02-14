@@ -12,7 +12,6 @@ const sendEmail = async (to, subject, text) => {
   })
 
   await transporter.sendMail({
-    from: `"TrustBus" <waylenbarreto@gmail.com>`,
     from: `"TrustBus" <sheregarkarthik67@gmail.com>`,
     to,
     subject,

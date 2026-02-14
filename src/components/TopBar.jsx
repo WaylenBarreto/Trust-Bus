@@ -1,34 +1,43 @@
-<<<<<<< HEAD
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from "react-router-dom"
 
 const TopBar = () => {
   const navigate = useNavigate()
 
-  // ⭐ GET USER FROM LOCAL STORAGE
-  const user = JSON.parse(localStorage.getItem("user"))
+  // Safe localStorage parsing (prevents crash)
+  let user = null
+  try {
+    user = JSON.parse(localStorage.getItem("user"))
+  } catch {}
+
   const userName = user?.name || "User"
 
   const handleLogout = () => {
     localStorage.clear()
-    navigate('/login')
+    navigate("/login")
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="bg-white shadow-sm border-b">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
 
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 text-green-600 font-semibold">
+          {/* User info */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center rounded-full bg-green-100 text-green-600 font-bold">
               {userName.charAt(0).toUpperCase()}
             </div>
-            <span className="text-gray-700 font-medium hidden sm:block">
-              {userName}
-            </span>
+
+            <div className="hidden sm:block">
+              <p className="text-sm text-gray-500">Welcome back</p>
+              <p className="font-semibold text-gray-800">{userName}</p>
+            </div>
           </div>
 
-          <button onClick={handleLogout}
-            className="px-4 py-2 text-gray-700 hover:text-red-600">
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+          >
             Logout
           </button>
 
@@ -39,45 +48,3 @@ const TopBar = () => {
 }
 
 export default TopBar
-=======
-import { useNavigate } from 'react-router-dom'
-
-const TopBar = () => {
-  const navigate = useNavigate()
-
-  // ⭐ GET USER FROM LOCAL STORAGE
-  const user = JSON.parse(localStorage.getItem("user"))
-  const userName = user?.name || "User"
-
-  const handleLogout = () => {
-    localStorage.clear()
-    navigate('/login')
-  }
-
-  return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 text-green-600 font-semibold">
-              {userName.charAt(0).toUpperCase()}
-            </div>
-            <span className="text-gray-700 font-medium hidden sm:block">
-              {userName}
-            </span>
-          </div>
-
-          <button onClick={handleLogout}
-            className="px-4 py-2 text-gray-700 hover:text-red-600">
-            Logout
-          </button>
-
-        </div>
-      </div>
-    </header>
-  )
-}
-
-export default TopBar
->>>>>>> 4f3f6ea6c533369cc724f792361e360e86825758

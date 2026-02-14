@@ -1,222 +1,123 @@
-<<<<<<< HEAD
 import { motion } from 'framer-motion'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
-import AnimatedBuses from '../components/AnimatedBuses'
 import BusInspection from '../components/BusInspection'
 import BusRating from '../components/BusRating'
+import Chatbot from "../components/Chatbot"
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../components/ui/table'
-import Chatbot from "../components/Chatbot";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 
-
-// Fix for default marker icons in React Leaflet
+// Fix leaflet icons
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconRetinaUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
 
-// Dummy bus data with locations and photos (IR sensor crowd: Low/Medium/High)
+// Red marker for user location (Verna)
+const redMarkerIcon = L.divIcon({
+  html: '<div style="background-color:#dc2626; width:26px; height:26px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); border:2px solid white; box-shadow:0 2px 6px rgba(0,0,0,0.35);"></div>',
+  className: '',
+  iconSize: [26, 26],
+  iconAnchor: [13, 26],
+})
+
 const dummyBuses = [
-  { 
-    id: "BUS101", 
-    route: "Vasco → PCCE → Panjim", 
-    status: "On Time", 
-    eta: "5 min",
-    location: [15.3893, 73.8149], // Vasco area
-    photo: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200&h=200&fit=crop",
-    capacity: 50,
-    occupied: 42, // 84% - Full
-    crowdLevel: "High" // IR sensor: Low / Medium / High
-  },
-  { 
-    id: "BUS204", 
-    route: "Margao → PCCE", 
-    status: "Delayed", 
-    eta: "15 min",
-    location: [15.2993, 73.9570], // Margao area
-    photo: "https://images.unsplash.com/photo-1516528387618-afa90b13e000?w=200&h=200&fit=crop",
-    capacity: 50,
-    occupied: 15, // 30% - Empty
-    crowdLevel: "Low"
-  },
-  { 
-    id: "BUS330", 
-    route: "Verna → PCCE", 
-    status: "Arriving Soon", 
-    eta: "2 min",
-    location: [15.3500, 73.9000], // Verna area
-    photo: "https://images.unsplash.com/photo-1557223562-6c77ef16210f?w=200&h=200&fit=crop",
-    capacity: 50,
-    occupied: 28, // 56% - Moderate
-    crowdLevel: "Medium"
-  }
+  { id:"BUS101", route:"Vasco → PCCE → Panjim", name:"Vasco Express", status:"On Time", eta:"5 min", location:[15.3893,73.8149], crowdLevel:"High", feeStudentHalf: 25, image:"https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=400&h=220&fit=crop" },
+  { id:"BUS204", route:"Margao → PCCE", name:"Margao Line", status:"Delayed", eta:"15 min", location:[15.2993,73.9570], crowdLevel:"Low", feeStudentHalf: 30, image:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400&h=220&fit=crop" },
+  { id:"BUS330", route:"Verna → PCCE", name:"Verna Shuttle", status:"Arriving Soon", eta:"2 min", location:[15.3500,73.9000], crowdLevel:"Medium", feeStudentHalf: 20, image:"https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=400&h=220&fit=crop" }
 ]
 
-// Status color mapping
-const getStatusColor = (status) => {
+const getStatusStyle = (status) => {
   switch (status) {
-    case "On Time":
-      return "text-green-600 font-semibold"
-    case "Delayed":
-      return "text-red-600 font-semibold"
-    case "Arriving Soon":
-      return "text-yellow-600 font-semibold"
-    default:
-      return "text-gray-600"
+    case "On Time":   return { bg: "bg-amber-100", border: "border-amber-400", text: "text-amber-700", badge: "bg-amber-500" }
+    case "Arriving Soon": return { bg: "bg-emerald-100", border: "border-emerald-400", text: "text-emerald-700", badge: "bg-emerald-500" }
+    case "Delayed":   return { bg: "bg-red-100", border: "border-red-400", text: "text-red-700", badge: "bg-red-500" }
+    default:          return { bg: "bg-gray-100", border: "border-gray-400", text: "text-gray-700", badge: "bg-gray-500" }
   }
 }
+
+const getCrowdStyle = (level) => {
+  switch (level) {
+    case "High":   return "bg-red-100 text-red-700"
+    case "Low":    return "bg-emerald-100 text-emerald-700"
+    case "Medium": return "bg-amber-100 text-amber-700"
+    default:       return "bg-gray-100 text-gray-700"
+  }
+}
+
+/** Small green bus icon: green body, white windows, blue wheels (facing right) */
+const BusIcon = ({ className = '' }) => (
+  <svg className={className} viewBox="0 0 56 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+    <rect x="2" y="6" width="44" height="14" rx="2" fill="#16a34a" />
+    <rect x="6" y="9" width="6" height="5" rx="0.5" fill="white" />
+    <rect x="14" y="9" width="6" height="5" rx="0.5" fill="white" />
+    <rect x="22" y="9" width="6" height="5" rx="0.5" fill="white" />
+    <rect x="30" y="9" width="6" height="5" rx="0.5" fill="white" />
+    <circle cx="14" cy="22" r="3" fill="#2563eb" />
+    <circle cx="34" cy="22" r="3" fill="#2563eb" />
+  </svg>
+)
 
 const Dashboard = () => {
   const [activePage, setActivePage] = useState('Home')
   const [selectedBus, setSelectedBus] = useState(null)
   const [showRating, setShowRating] = useState(false)
 
-  // Default map center (Goa, India coordinates)
   const mapCenter = [15.2993, 74.1240]
+  const userLocationVerna = [15.358, 73.892] // User location: Verna (inland, South Goa)
 
-  const handleBusSelect = (bus) => {
-    setSelectedBus(bus)
-    setShowRating(false) // Show inspection first
-  }
-
-  const handleCloseInspection = () => {
-    setSelectedBus(null)
-    setShowRating(false)
-  }
-
-  const handleShowRating = () => {
-    setShowRating(true)
-  }
-
-  const handleCloseRating = () => {
-    setShowRating(false)
-  }
-
-  // Render content based on active page
   const renderContent = () => {
     switch (activePage) {
+
       case 'Bus Status':
         return (
           <div className="max-w-7xl mx-auto">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Bus Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {dummyBuses.map((bus, index) => (
+            <Card>
+              <CardHeader><CardTitle>Bus Status</CardTitle></CardHeader>
+              <CardContent className="grid md:grid-cols-3 gap-6">
+                {dummyBuses.map((bus, i) => {
+                  const style = getStatusStyle(bus.status)
+                  return (
                     <motion.div
                       key={bus.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ 
-                        duration: 0.3, 
-                        delay: index * 0.1 
-                      }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="cursor-pointer"
-                      onClick={() => handleBusSelect(bus)}
+                      transition={{ delay: i * 0.08 }}
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      whileTap={{ scale: 0.99 }}
+                      className={`rounded-xl overflow-hidden border-2 ${style.border} bg-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                      onClick={() => setSelectedBus(bus)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && setSelectedBus(bus)}
                     >
-                      <Card className="shadow-md hover:shadow-lg transition-shadow duration-200 border border-gray-200">
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-4">
-                            {/* Bus Photo */}
-                            <div className="relative">
-                              <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-green-200 bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center relative">
-                                <img
-                                  src={bus.photo}
-                                  alt={bus.id}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    // Hide image on error - gradient background will show
-                                    e.target.style.display = 'none'
-                                  }}
-                                />
-                                {/* Fallback bus icon - shows if image fails or as background */}
-                                <svg
-                                  className="w-12 h-12 text-white absolute inset-0 m-auto"
-                                  fill="none"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  style={{ opacity: 0.3 }}
-                                >
-                                  <rect x="4" y="6" width="16" height="10" rx="2" />
-                                  <rect x="6" y="9" width="3" height="4" fill="currentColor" />
-                                  <rect x="11" y="9" width="3" height="4" fill="currentColor" />
-                                  <rect x="15" y="9" width="3" height="4" fill="currentColor" />
-                                  <circle cx="8" cy="18" r="1.5" fill="currentColor" />
-                                  <circle cx="16" cy="18" r="1.5" fill="currentColor" />
-                                </svg>
-                              </div>
-                              {/* Status Badge */}
-                              <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                                bus.status === "On Time" ? "bg-green-500" :
-                                bus.status === "Delayed" ? "bg-red-500" :
-                                "bg-yellow-500"
-                              }`} />
-                            </div>
-                            
-                            {/* Bus Info */}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-lg text-gray-800 truncate">
-                                {bus.id}
-                              </h3>
-                              <p className="text-sm text-gray-500 mt-1 truncate">
-                                {bus.route}
-                              </p>
-                              <div className="flex items-center justify-between mt-2">
-                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                                  bus.status === "On Time" ? "bg-green-100 text-green-700" :
-                                  bus.status === "Delayed" ? "bg-red-100 text-red-700" :
-                                  "bg-yellow-100 text-yellow-700"
-                                }`}>
-                                  {bus.status}
-                                </span>
-                                <span className={`text-lg font-bold ${
-                                  bus.status === "On Time" ? "text-green-600" :
-                                  bus.status === "Delayed" ? "text-red-600" :
-                                  "text-yellow-600"
-                                }`}>
-                                  {bus.eta}
-                                </span>
-                              </div>
-                              <div className="mt-2 flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Crowd:</span>
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                                  bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
-                                  bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
-                                  "bg-red-100 text-red-700"
-                                }`}>
-                                  {bus.crowdLevel}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <div className="relative aspect-video bg-gray-200 overflow-hidden">
+                        <img src={bus.image} alt={bus.id} className="w-full h-full object-cover" />
+                        <div className={`absolute top-2 left-2 px-2 py-1 rounded-md text-white text-xs font-bold shadow ${style.badge}`}>
+                          {bus.id}
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Route</p>
+                        <p className="font-semibold text-gray-900 mb-3 flex items-center gap-1.5">
+                          <span className="text-lg">🗺️</span>
+                          {bus.route}
+                        </p>
+                        <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${style.bg}`}>
+                          <span className={`font-semibold ${style.text}`}>{bus.status}</span>
+                          <span className={`font-bold ${style.text}`}>{bus.eta}</span>
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500 text-center">Tap to view details</p>
+                      </div>
                     </motion.div>
-                  ))}
-                </div>
+                  )
+                })}
               </CardContent>
             </Card>
           </div>
@@ -224,115 +125,18 @@ const Dashboard = () => {
 
       case 'Routes':
         return (
-          <div className="max-w-7xl mx-auto space-y-6">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Bus Routes & Live Locations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AnimatedBuses />
-                <div className="h-[600px] w-full rounded-lg overflow-hidden border border-gray-200 relative" style={{ zIndex: selectedBus ? 1 : 'auto' }}>
-                  <MapContainer
-                    center={mapCenter}
-                    zoom={11}
-                    style={{ height: '100%', width: '100%', zIndex: selectedBus ? 1 : 'auto' }}
-                    scrollWheelZoom={true}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    {/* Bus Markers */}
-                    {dummyBuses.map((bus) => {
-                      // Create custom bus icon
-                      const busIcon = L.divIcon({
-                        className: 'custom-bus-marker',
-                        html: `
-                          <div style="
-                            background: ${bus.status === "On Time" ? "#10b981" : bus.status === "Delayed" ? "#ef4444" : "#eab308"};
-                            width: 40px;
-                            height: 40px;
-                            border-radius: 50%;
-                            border: 3px solid white;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-weight: bold;
-                            color: white;
-                            font-size: 12px;
-                          ">
-                            ${bus.id.replace('BUS', '')}
-                          </div>
-                        `,
-                        iconSize: [40, 40],
-                        iconAnchor: [20, 20],
-                      })
-                      
-                      return (
-                        <Marker key={bus.id} position={bus.location} icon={busIcon}>
-                          <Popup>
-                            <div className="p-2">
-                              <h3 className="font-bold text-sm mb-1">{bus.id}</h3>
-                              <p className="text-xs text-gray-600 mb-1">{bus.route}</p>
-                              <p className="text-xs">
-                                <span className="font-semibold">Status:</span> {bus.status}
-                              </p>
-                              <p className="text-xs">
-                                <span className="font-semibold">ETA (AI):</span> {bus.eta}
-                              </p>
-                              <p className="text-xs">
-                                <span className="font-semibold">Crowd:</span> {bus.crowdLevel}
-                              </p>
-                            </div>
-                          </Popup>
-                        </Marker>
-                      )
-                    })}
-                  </MapContainer>
-                </div>
-                
-                {/* Bus List Below Map */}
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {dummyBuses.map((bus) => (
-                    <motion.div
-                      key={bus.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-green-50 transition-colors cursor-pointer"
-                      onClick={() => handleBusSelect(bus)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-sm text-gray-800">{bus.id}</p>
-                          <p className="text-xs text-gray-500 mt-1">{bus.route}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-xs font-semibold ${
-                            bus.status === "On Time" ? "text-green-600" :
-                            bus.status === "Delayed" ? "text-red-600" :
-                            "text-yellow-600"
-                          }`}>
-                            {bus.status}
-                          </p>
-                          <p className={`text-sm font-bold mt-1 ${
-                            bus.status === "On Time" ? "text-green-600" :
-                            bus.status === "Delayed" ? "text-red-600" :
-                            "text-yellow-600"
-                          }`}>{bus.eta}</p>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded mt-1 inline-block ${
-                            bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
-                            bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
-                            "bg-red-100 text-red-700"
-                          }`}>{bus.crowdLevel}</span>
-                        </div>
-                      </div>
-                    </motion.div>
+          <div className="max-w-7xl mx-auto">
+            <Card>
+              <CardHeader><CardTitle>Live Bus Routes</CardTitle></CardHeader>
+              <CardContent className="h-[600px]">
+                <MapContainer center={mapCenter} zoom={11} style={{height:"100%"}}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+                  {dummyBuses.map(bus=>(
+                    <Marker key={bus.id} position={bus.location}>
+                      <Popup>{bus.id}</Popup>
+                    </Marker>
                   ))}
-                </div>
+                </MapContainer>
               </CardContent>
             </Card>
           </div>
@@ -341,143 +145,106 @@ const Dashboard = () => {
       case 'Notifications':
         return (
           <div className="max-w-7xl mx-auto">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Smart Notifications
-                </CardTitle>
-                <p className="text-sm text-gray-500 mt-1">
-                  Get alerts when the bus is near or a less crowded option is available
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-xl">🚌</span>
-                      <div>
-                        <p className="font-semibold text-green-800">Bus Approaching</p>
-                        <p className="text-sm text-green-700 mt-1">BUS330 is 2 min away from your stop • Vasco → PCCE</p>
-                        <p className="text-xs text-gray-500 mt-2">Just now</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-xl">💡</span>
-                      <div>
-                        <p className="font-semibold text-blue-800">Less Crowded Option</p>
-                        <p className="text-sm text-blue-700 mt-1">BUS204 has Low crowd level • Arriving in 15 min</p>
-                        <p className="text-xs text-gray-500 mt-2">5 min ago</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-xl">⏰</span>
-                      <div>
-                        <p className="font-semibold text-gray-800">Schedule Update</p>
-                        <p className="text-sm text-gray-600 mt-1">BUS101 running 5 min late due to traffic</p>
-                        <p className="text-xs text-gray-500 mt-2">12 min ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <Card>
+              <CardHeader><CardTitle>Alerts & Notifications</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="p-4 bg-green-100 rounded-lg border border-green-200">✔ BUS101 – On time, arriving in 5 min</div>
+                <div className="p-4 bg-yellow-100 rounded-lg border border-yellow-200">⏰ BUS204 – Delayed by ~15 min on Margao → PCCE</div>
+                <div className="p-4 bg-blue-100 rounded-lg border border-blue-200">📍 Route update: Verna → PCCE service running as scheduled</div>
+                <div className="p-4 bg-gray-100 rounded-lg border border-gray-200">ℹ No disruptions on Vasco → Panjim corridor</div>
               </CardContent>
             </Card>
           </div>
         )
 
-      case 'Home':
       default:
         return (
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Map Section */}
-            <Card className="shadow-sm">
+            {/* Live Bus Tracking (GPS) - same layout as reference */}
+            <Card>
               <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Live Bus Tracking (GPS)
-                </CardTitle>
+                <CardTitle className="text-xl">Live Bus Tracking (GPS)</CardTitle>
                 <p className="text-sm text-gray-500 mt-1">Real-time bus locations on map</p>
               </CardHeader>
-              <CardContent>
-                <AnimatedBuses />
-                <div className="h-[350px] w-full rounded-lg overflow-hidden border border-gray-200 relative" style={{ zIndex: selectedBus ? 1 : 'auto' }}>
-                  <MapContainer
-                    center={mapCenter}
-                    zoom={11}
-                    style={{ height: '100%', width: '100%', zIndex: selectedBus ? 1 : 'auto' }}
-                    scrollWheelZoom={false}
+              <CardContent className="space-y-4">
+                {/* Two small green buses moving left to right, full cycle every 20 seconds */}
+                <div className="relative h-14 overflow-hidden">
+                  <motion.div
+                    className="absolute left-0 top-1/2 -translate-y-1/2"
+                    initial={{ x: '-100px' }}
+                    animate={{ x: 'calc(100% + 100px)' }}
+                    transition={{ duration: 20, repeat: Infinity, repeatDelay: 0 }}
                   >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    <Marker position={mapCenter}>
-                      <Popup>
-                        Trust Bus Location
-                      </Popup>
+                    <BusIcon className="w-14 h-7 text-green-600" />
+                  </motion.div>
+                  <motion.div
+                    className="absolute left-0 top-1/2 -translate-y-1/2"
+                    initial={{ x: '-100px' }}
+                    animate={{ x: 'calc(100% + 100px)' }}
+                    transition={{ duration: 20, repeat: Infinity, repeatDelay: 0, delay: 10 }}
+                  >
+                    <BusIcon className="w-14 h-7 text-green-600" />
+                  </motion.div>
+                </div>
+                <div className="h-[350px] rounded-lg overflow-hidden border border-gray-200">
+                  <MapContainer center={mapCenter} zoom={11} style={{ height: '100%' }}>
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Marker position={userLocationVerna} icon={redMarkerIcon}>
+                      <Popup><strong>Verna</strong><br />Your location</Popup>
                     </Marker>
+                    {dummyBuses.map((bus) => (
+                      <Marker key={bus.id} position={bus.location}>
+                        <Popup><strong>{bus.id}</strong><br />{bus.route}<br />ETA: {bus.eta}</Popup>
+                      </Marker>
+                    ))}
                   </MapContainer>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Bus Table Section */}
-            <Card className="shadow-sm">
+            {/* Bus Status table with coloured ETA, Status, Crowd */}
+            <Card>
               <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Bus Status
-                </CardTitle>
+                <CardTitle>Bus Status</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[150px]">Bus ID</TableHead>
+                      <TableHead>Bus ID</TableHead>
                       <TableHead>Route</TableHead>
-                      <TableHead className="text-center">ETA (AI)</TableHead>
-                      <TableHead className="text-center">Crowd</TableHead>
-                      <TableHead className="text-right">Status</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>ETA (AI)</TableHead>
+                      <TableHead>Crowd</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Fee (Student half) ₹</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dummyBuses.map((bus, index) => {
-                      const MotionTableRow = motion(TableRow)
+                    {dummyBuses.map((bus) => {
+                      const style = getStatusStyle(bus.status)
                       return (
-                        <MotionTableRow
+                        <TableRow
                           key={bus.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ 
-                            duration: 0.3, 
-                            delay: index * 0.1 
-                          }}
-                          className="cursor-pointer hover:bg-green-50 transition-colors"
-                          onClick={() => handleBusSelect(bus)}
+                          className="cursor-pointer hover:bg-green-50/50"
+                          onClick={() => setSelectedBus(bus)}
                         >
-                          <TableCell className="font-medium">{bus.id}</TableCell>
+                          <TableCell className="font-mono font-semibold">{bus.id}</TableCell>
                           <TableCell>{bus.route}</TableCell>
-                          <TableCell className={`text-center font-medium ${
-                            bus.status === "On Time" ? "text-green-600" :
-                            bus.status === "Delayed" ? "text-red-600" :
-                            "text-yellow-600"
-                          }`}>
-                            {bus.eta}
+                          <TableCell>{bus.name}</TableCell>
+                          <TableCell>
+                            <span className={`font-semibold ${style.text}`}>{bus.eta}</span>
                           </TableCell>
-                          <TableCell className="text-center">
-                            <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                              bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
-                              bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
-                              "bg-red-100 text-red-700"
-                            }`}>
+                          <TableCell>
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getCrowdStyle(bus.crowdLevel)}`}>
                               {bus.crowdLevel}
                             </span>
                           </TableCell>
-                          <TableCell className={`text-right ${getStatusColor(bus.status)}`}>
-                            {bus.status}
+                          <TableCell>
+                            <span className={`font-semibold ${style.text}`}>{bus.status}</span>
                           </TableCell>
-                        </MotionTableRow>
+                          <TableCell className="text-right font-medium">₹{bus.feeStudentHalf}</TableCell>
+                        </TableRow>
                       )
                     })}
                   </TableBody>
@@ -491,573 +258,24 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex h-screen overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar activePage={activePage} setActivePage={setActivePage} />
-        
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Top Bar */}
-          <TopBar />
-          
-          {/* Main Content */}
-          <main className="flex-1 overflow-y-auto p-6">
-            {renderContent()}
-          </main>
+      <div className="flex h-screen">
+        <Sidebar activePage={activePage} setActivePage={setActivePage}/>
+        <div className="flex-1 flex flex-col">
+          <TopBar/>
+          <main className="flex-1 overflow-y-auto p-6">{renderContent()}</main>
         </div>
       </div>
 
-      {/* Bus Inspection Modal - shown first as key feature */}
       {selectedBus && !showRating && (
-        <BusInspection 
-          bus={selectedBus} 
-          onClose={handleCloseInspection}
-          onShowRating={handleShowRating}
-        />
+        <BusInspection bus={selectedBus} onClose={()=>setSelectedBus(null)} onShowRating={()=>setShowRating(true)} />
+      )}
+      {selectedBus && showRating && (
+        <BusRating bus={selectedBus} onClose={()=>setShowRating(false)} />
       )}
 
-      {/* Bus Rating Modal - accessible from inspection */}
-      {selectedBus && showRating && (
-        <BusRating 
-          bus={selectedBus} 
-          onClose={handleCloseRating}
-        />
-      )}
-      {/* ✅ CHATBOT GOES HERE */}
-      <Chatbot />
+      <Chatbot/>
     </div>
   )
 }
 
 export default Dashboard
-
-=======
-import { motion } from 'framer-motion'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
-import { useState } from 'react'
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
-import AnimatedBuses from '../components/AnimatedBuses'
-import BusInspection from '../components/BusInspection'
-import BusRating from '../components/BusRating'
-import Sidebar from '../components/Sidebar'
-import TopBar from '../components/TopBar'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../components/ui/table'
-
-// Fix for default marker icons in React Leaflet
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-})
-
-// Dummy bus data with locations and photos (IR sensor crowd: Low/Medium/High)
-const dummyBuses = [
-  { 
-    id: "BUS101", 
-    route: "Vasco → PCCE → Panjim", 
-    status: "On Time", 
-    eta: "5 min",
-    location: [15.3893, 73.8149], // Vasco area
-    photo: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=200&h=200&fit=crop",
-    capacity: 50,
-    occupied: 42, // 84% - Full
-    crowdLevel: "High" // IR sensor: Low / Medium / High
-  },
-  { 
-    id: "BUS204", 
-    route: "Margao → PCCE", 
-    status: "Delayed", 
-    eta: "15 min",
-    location: [15.2993, 73.9570], // Margao area
-    photo: "https://images.unsplash.com/photo-1516528387618-afa90b13e000?w=200&h=200&fit=crop",
-    capacity: 50,
-    occupied: 15, // 30% - Empty
-    crowdLevel: "Low"
-  },
-  { 
-    id: "BUS330", 
-    route: "Verna → PCCE", 
-    status: "Arriving Soon", 
-    eta: "2 min",
-    location: [15.3500, 73.9000], // Verna area
-    photo: "https://images.unsplash.com/photo-1557223562-6c77ef16210f?w=200&h=200&fit=crop",
-    capacity: 50,
-    occupied: 28, // 56% - Moderate
-    crowdLevel: "Medium"
-  }
-]
-
-// Status color mapping
-const getStatusColor = (status) => {
-  switch (status) {
-    case "On Time":
-      return "text-green-600 font-semibold"
-    case "Delayed":
-      return "text-red-600 font-semibold"
-    case "Arriving Soon":
-      return "text-yellow-600 font-semibold"
-    default:
-      return "text-gray-600"
-  }
-}
-
-const Dashboard = () => {
-  const [activePage, setActivePage] = useState('Home')
-  const [selectedBus, setSelectedBus] = useState(null)
-  const [showRating, setShowRating] = useState(false)
-
-  // Default map center (Goa, India coordinates)
-  const mapCenter = [15.2993, 74.1240]
-
-  const handleBusSelect = (bus) => {
-    setSelectedBus(bus)
-    setShowRating(false) // Show inspection first
-  }
-
-  const handleCloseInspection = () => {
-    setSelectedBus(null)
-    setShowRating(false)
-  }
-
-  const handleShowRating = () => {
-    setShowRating(true)
-  }
-
-  const handleCloseRating = () => {
-    setShowRating(false)
-  }
-
-  // Render content based on active page
-  const renderContent = () => {
-    switch (activePage) {
-      case 'Bus Status':
-        return (
-          <div className="max-w-7xl mx-auto">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Bus Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {dummyBuses.map((bus, index) => (
-                    <motion.div
-                      key={bus.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ 
-                        duration: 0.3, 
-                        delay: index * 0.1 
-                      }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="cursor-pointer"
-                      onClick={() => handleBusSelect(bus)}
-                    >
-                      <Card className="shadow-md hover:shadow-lg transition-shadow duration-200 border border-gray-200">
-                        <CardContent className="p-4">
-                          <div className="flex items-center space-x-4">
-                            {/* Bus Photo */}
-                            <div className="relative">
-                              <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-green-200 bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center relative">
-                                <img
-                                  src={bus.photo}
-                                  alt={bus.id}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    // Hide image on error - gradient background will show
-                                    e.target.style.display = 'none'
-                                  }}
-                                />
-                                {/* Fallback bus icon - shows if image fails or as background */}
-                                <svg
-                                  className="w-12 h-12 text-white absolute inset-0 m-auto"
-                                  fill="none"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  style={{ opacity: 0.3 }}
-                                >
-                                  <rect x="4" y="6" width="16" height="10" rx="2" />
-                                  <rect x="6" y="9" width="3" height="4" fill="currentColor" />
-                                  <rect x="11" y="9" width="3" height="4" fill="currentColor" />
-                                  <rect x="15" y="9" width="3" height="4" fill="currentColor" />
-                                  <circle cx="8" cy="18" r="1.5" fill="currentColor" />
-                                  <circle cx="16" cy="18" r="1.5" fill="currentColor" />
-                                </svg>
-                              </div>
-                              {/* Status Badge */}
-                              <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                                bus.status === "On Time" ? "bg-green-500" :
-                                bus.status === "Delayed" ? "bg-red-500" :
-                                "bg-yellow-500"
-                              }`} />
-                            </div>
-                            
-                            {/* Bus Info */}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-lg text-gray-800 truncate">
-                                {bus.id}
-                              </h3>
-                              <p className="text-sm text-gray-500 mt-1 truncate">
-                                {bus.route}
-                              </p>
-                              <div className="flex items-center justify-between mt-2">
-                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                                  bus.status === "On Time" ? "bg-green-100 text-green-700" :
-                                  bus.status === "Delayed" ? "bg-red-100 text-red-700" :
-                                  "bg-yellow-100 text-yellow-700"
-                                }`}>
-                                  {bus.status}
-                                </span>
-                                <span className={`text-lg font-bold ${
-                                  bus.status === "On Time" ? "text-green-600" :
-                                  bus.status === "Delayed" ? "text-red-600" :
-                                  "text-yellow-600"
-                                }`}>
-                                  {bus.eta}
-                                </span>
-                              </div>
-                              <div className="mt-2 flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Crowd:</span>
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                                  bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
-                                  bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
-                                  "bg-red-100 text-red-700"
-                                }`}>
-                                  {bus.crowdLevel}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
-
-      case 'Routes':
-        return (
-          <div className="max-w-7xl mx-auto space-y-6">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Bus Routes & Live Locations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AnimatedBuses />
-                <div className="h-[600px] w-full rounded-lg overflow-hidden border border-gray-200 relative" style={{ zIndex: selectedBus ? 1 : 'auto' }}>
-                  <MapContainer
-                    center={mapCenter}
-                    zoom={11}
-                    style={{ height: '100%', width: '100%', zIndex: selectedBus ? 1 : 'auto' }}
-                    scrollWheelZoom={true}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    {/* Bus Markers */}
-                    {dummyBuses.map((bus) => {
-                      // Create custom bus icon
-                      const busIcon = L.divIcon({
-                        className: 'custom-bus-marker',
-                        html: `
-                          <div style="
-                            background: ${bus.status === "On Time" ? "#10b981" : bus.status === "Delayed" ? "#ef4444" : "#eab308"};
-                            width: 40px;
-                            height: 40px;
-                            border-radius: 50%;
-                            border: 3px solid white;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-weight: bold;
-                            color: white;
-                            font-size: 12px;
-                          ">
-                            ${bus.id.replace('BUS', '')}
-                          </div>
-                        `,
-                        iconSize: [40, 40],
-                        iconAnchor: [20, 20],
-                      })
-                      
-                      return (
-                        <Marker key={bus.id} position={bus.location} icon={busIcon}>
-                          <Popup>
-                            <div className="p-2">
-                              <h3 className="font-bold text-sm mb-1">{bus.id}</h3>
-                              <p className="text-xs text-gray-600 mb-1">{bus.route}</p>
-                              <p className="text-xs">
-                                <span className="font-semibold">Status:</span> {bus.status}
-                              </p>
-                              <p className="text-xs">
-                                <span className="font-semibold">ETA (AI):</span> {bus.eta}
-                              </p>
-                              <p className="text-xs">
-                                <span className="font-semibold">Crowd:</span> {bus.crowdLevel}
-                              </p>
-                            </div>
-                          </Popup>
-                        </Marker>
-                      )
-                    })}
-                  </MapContainer>
-                </div>
-                
-                {/* Bus List Below Map */}
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {dummyBuses.map((bus) => (
-                    <motion.div
-                      key={bus.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-green-50 transition-colors cursor-pointer"
-                      onClick={() => handleBusSelect(bus)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-sm text-gray-800">{bus.id}</p>
-                          <p className="text-xs text-gray-500 mt-1">{bus.route}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-xs font-semibold ${
-                            bus.status === "On Time" ? "text-green-600" :
-                            bus.status === "Delayed" ? "text-red-600" :
-                            "text-yellow-600"
-                          }`}>
-                            {bus.status}
-                          </p>
-                          <p className={`text-sm font-bold mt-1 ${
-                            bus.status === "On Time" ? "text-green-600" :
-                            bus.status === "Delayed" ? "text-red-600" :
-                            "text-yellow-600"
-                          }`}>{bus.eta}</p>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded mt-1 inline-block ${
-                            bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
-                            bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
-                            "bg-red-100 text-red-700"
-                          }`}>{bus.crowdLevel}</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
-
-      case 'Notifications':
-        return (
-          <div className="max-w-7xl mx-auto">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Smart Notifications
-                </CardTitle>
-                <p className="text-sm text-gray-500 mt-1">
-                  Get alerts when the bus is near or a less crowded option is available
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-xl">🚌</span>
-                      <div>
-                        <p className="font-semibold text-green-800">Bus Approaching</p>
-                        <p className="text-sm text-green-700 mt-1">BUS330 is 2 min away from your stop • Vasco → PCCE</p>
-                        <p className="text-xs text-gray-500 mt-2">Just now</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-xl">💡</span>
-                      <div>
-                        <p className="font-semibold text-blue-800">Less Crowded Option</p>
-                        <p className="text-sm text-blue-700 mt-1">BUS204 has Low crowd level • Arriving in 15 min</p>
-                        <p className="text-xs text-gray-500 mt-2">5 min ago</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-xl">⏰</span>
-                      <div>
-                        <p className="font-semibold text-gray-800">Schedule Update</p>
-                        <p className="text-sm text-gray-600 mt-1">BUS101 running 5 min late due to traffic</p>
-                        <p className="text-xs text-gray-500 mt-2">12 min ago</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
-
-      case 'Home':
-      default:
-        return (
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Map Section */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Live Bus Tracking (GPS)
-                </CardTitle>
-                <p className="text-sm text-gray-500 mt-1">Real-time bus locations on map</p>
-              </CardHeader>
-              <CardContent>
-                <AnimatedBuses />
-                <div className="h-[350px] w-full rounded-lg overflow-hidden border border-gray-200 relative" style={{ zIndex: selectedBus ? 1 : 'auto' }}>
-                  <MapContainer
-                    center={mapCenter}
-                    zoom={11}
-                    style={{ height: '100%', width: '100%', zIndex: selectedBus ? 1 : 'auto' }}
-                    scrollWheelZoom={false}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    <Marker position={mapCenter}>
-                      <Popup>
-                        Trust Bus Location
-                      </Popup>
-                    </Marker>
-                  </MapContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Bus Table Section */}
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold text-gray-800">
-                  Bus Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[150px]">Bus ID</TableHead>
-                      <TableHead>Route</TableHead>
-                      <TableHead className="text-center">ETA (AI)</TableHead>
-                      <TableHead className="text-center">Crowd</TableHead>
-                      <TableHead className="text-right">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dummyBuses.map((bus, index) => {
-                      const MotionTableRow = motion(TableRow)
-                      return (
-                        <MotionTableRow
-                          key={bus.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ 
-                            duration: 0.3, 
-                            delay: index * 0.1 
-                          }}
-                          className="cursor-pointer hover:bg-green-50 transition-colors"
-                          onClick={() => handleBusSelect(bus)}
-                        >
-                          <TableCell className="font-medium">{bus.id}</TableCell>
-                          <TableCell>{bus.route}</TableCell>
-                          <TableCell className={`text-center font-medium ${
-                            bus.status === "On Time" ? "text-green-600" :
-                            bus.status === "Delayed" ? "text-red-600" :
-                            "text-yellow-600"
-                          }`}>
-                            {bus.eta}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className={`text-xs font-semibold px-2 py-1 rounded ${
-                              bus.crowdLevel === "Low" ? "bg-green-100 text-green-700" :
-                              bus.crowdLevel === "Medium" ? "bg-yellow-100 text-yellow-700" :
-                              "bg-red-100 text-red-700"
-                            }`}>
-                              {bus.crowdLevel}
-                            </span>
-                          </TableCell>
-                          <TableCell className={`text-right ${getStatusColor(bus.status)}`}>
-                            {bus.status}
-                          </TableCell>
-                        </MotionTableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        )
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex h-screen overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar activePage={activePage} setActivePage={setActivePage} />
-        
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Top Bar */}
-          <TopBar />
-          
-          {/* Main Content */}
-          <main className="flex-1 overflow-y-auto p-6">
-            {renderContent()}
-          </main>
-        </div>
-      </div>
-
-      {/* Bus Inspection Modal - shown first as key feature */}
-      {selectedBus && !showRating && (
-        <BusInspection 
-          bus={selectedBus} 
-          onClose={handleCloseInspection}
-          onShowRating={handleShowRating}
-        />
-      )}
-
-      {/* Bus Rating Modal - accessible from inspection */}
-      {selectedBus && showRating && (
-        <BusRating 
-          bus={selectedBus} 
-          onClose={handleCloseRating}
-        />
-      )}
-    </div>
-  )
-}
-
-export default Dashboard
-
->>>>>>> 4f3f6ea6c533369cc724f792361e360e86825758
