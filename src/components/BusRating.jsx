@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion"
 import { useState } from "react"
+import { submitDriverRating } from "../api/auth"
 import { Button } from "./ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Input } from "./ui/input"
 
+const user = JSON.parse(localStorage.getItem("user"))
 const BusRating = ({ bus, onClose }) => {
   const [ticketNumber, setTicketNumber] = useState("")
   const [rating, setRating] = useState(0)
@@ -13,17 +15,31 @@ const BusRating = ({ bus, onClose }) => {
   // Safety guard
   if (!bus) return null
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (!ticketNumber || rating === 0) return
+const handleSubmit = async (e) => {
+  e.preventDefault()
+  if (!ticketNumber || rating === 0) return
+
+  try {
+    await submitDriverRating({
+      username: user.name,
+      email: user.email,
+      ticketNumber: ticketNumber,
+      rating: rating,
+      busRoute: `${bus.id} - ${bus.route}`
+    })
 
     setIsSubmitted(true)
 
-    // simulate API delay
     setTimeout(() => {
       onClose()
     }, 2000)
+
+  } catch (error) {
+    alert("Failed to submit rating")
+    console.log(error)
   }
+}
+
 
   return (
     <AnimatePresence>

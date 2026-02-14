@@ -19,3 +19,10 @@ export const resendOTP = (data) =>
 // LOGIN
 export const loginUser = (data) =>
   API.post("/auth/login", data);
+
+// SUBMIT SAFETY REPORT
+export const submitSafetyReport = (data) =>
+  API.post("/reports", data);
+
+export const submitDriverRating = (data) =>
+  API.post("/ratings", data);

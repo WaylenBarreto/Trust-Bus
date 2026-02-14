@@ -4,7 +4,10 @@ const cors = require("cors");
 require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
-const dialogflowRoutes = require("./routes/dialogflowRoutes"); // ✅ ADD THIS
+const dialogflowRoutes = require("./routes/dialogflowRoutes");
+const safetyReportRoutes = require("./routes/safetyReportRoutes"); 
+const driverRatingRoutes = require("./routes/driverRatingRoutes")
+const aiRoutes = require("./routes/aiRoutes")
 
 const app = express();
 
@@ -14,7 +17,11 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/dialogflow", dialogflowRoutes); // ✅ ADD THIS
+app.use("/api/dialogflow", dialogflowRoutes);
+app.use("/api/reports", safetyReportRoutes); // ⭐ NEW
+app.use("/api/ratings", driverRatingRoutes)
+app.use("/api/ai", aiRoutes)
+
 
 // MongoDB connection
 mongoose
