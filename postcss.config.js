@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 export default {
   plugins: {
     tailwindcss: {},
@@ -6,7 +5,6 @@ export default {
   },
 }
 
-=======
 export default {
   plugins: {
     tailwindcss: {},
@@ -14,4 +12,3 @@ export default {
   },
 }
 
->>>>>>> 4f3f6ea6c533369cc724f792361e360e86825758

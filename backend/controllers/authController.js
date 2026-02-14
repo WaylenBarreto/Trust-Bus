@@ -6,7 +6,6 @@ const sendEmail = require("../utils/sendEmail")
 // TEMP STORAGE FOR UNVERIFIED USERS
 const tempUsers = {}
 
-// ================= REGISTER =================
 const registerUser = async (req, res) => {
   try {
     const { role, name, email, phone, childName, studentId, password } = req.body
@@ -68,7 +67,6 @@ const registerUser = async (req, res) => {
   }
 }
 
-// ================= VERIFY OTP =================
 const verifyEmailOTP = async (req, res) => {
   try {
     const { email, otp } = req.body
@@ -101,7 +99,6 @@ const verifyEmailOTP = async (req, res) => {
   }
 }
 
-// ================= RESEND OTP =================
 const resendEmailOTP = async (req, res) => {
   try {
     const { email } = req.body
@@ -122,7 +119,6 @@ const resendEmailOTP = async (req, res) => {
   }
 }
 
-// ================= LOGIN =================
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body

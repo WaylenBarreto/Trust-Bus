@@ -12,11 +12,8 @@ const sendEmail = async (to, subject, text) => {
   })
 
   await transporter.sendMail({
-<<<<<<< HEAD
     from: `"TrustBus" <waylenbarreto@gmail.com>`,
-=======
     from: `"TrustBus" <sheregarkarthik67@gmail.com>`,
->>>>>>> 4f3f6ea6c533369cc724f792361e360e86825758
     to,
     subject,
     text,
