@@ -4,6 +4,8 @@ import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import { submitSafetyReport } from '../api/auth'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
+import Chatbot from "../components/ui/Chatbotp";
+
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -404,6 +406,7 @@ const handleReportSubmit = async (e) => {
           </motion.div>
         </div>
       )}
+      <Chatbot/>
     </div>
   )
 }

@@ -15,6 +15,19 @@ export default function Chatbot() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [chat])
 
+  // ⭐ Default welcome when opened
+  useEffect(() => {
+    if (isOpen && chat.length === 0) {
+      setChat([
+        {
+          sender: "Bot",
+          text:
+            "Hello 👋 I’m your TrustBus Parent Assistant. Ask me about your child’s bus location, safety status, arrival time, or alerts.",
+        },
+      ])
+    }
+  }, [isOpen])
+
   const sendMessage = async () => {
     if (!message.trim() || loading) return
 
@@ -25,9 +38,12 @@ export default function Chatbot() {
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/dialogflow/public"
+        "http://localhost:5000/api/dialogflow/parent"
 ,
-        { message: userMessage }
+        {
+          message: userMessage,
+          role: "parent", // ⭐ ensures parent Dialogflow agent is used
+        }
       )
 
       setChat((prev) => [
@@ -82,12 +98,6 @@ export default function Chatbot() {
 
             {/* Messages */}
             <div className="h-60 p-3 overflow-y-auto bg-gray-50 space-y-2">
-              {chat.length === 0 && (
-                <p className="text-gray-500 text-sm">
-                  Ask about buses, safety or timings 🙂
-                </p>
-              )}
-
               {chat.map((msg, i) => (
                 <div
                   key={i}

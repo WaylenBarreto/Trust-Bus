@@ -55,3 +55,9 @@ dist-ssr
 *.json
 backend/.env
 backend/dialogflow-key.json
+
+
+# Dialogflow secret keys
+*.json
+parent-key.json
+public-key.json
