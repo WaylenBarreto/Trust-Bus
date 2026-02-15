@@ -1,15 +1,36 @@
+import signal
+import sys
+import warnings
+warnings.filterwarnings("ignore")
 import cv2
 import numpy as np
 from ultralytics import YOLO
 import time
-import os
+from flask import Flask, Response
+from flask_cors import CORS
+import logging
 
-print("🚀 Starting TrustBus HyperMovement AI...")
+# Hide flask logs
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
-# Load YOLO model (auto downloads if not present)
-model = YOLO("yolov8n.pt")
+app = Flask(__name__)
+CORS(app)
 
-cap = cv2.VideoCapture(0)
+print("Starting TrustBus HyperMovement AI Web Stream...")
+
+model = YOLO("yolov8n.pt", verbose=False)
+cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+
+# ⭐ GRACEFUL EXIT HANDLER (VERY IMPORTANT)
+def shutdown_handler(signum, frame):
+    print("Shutting down HyperMovement AI...")
+    cap.release()
+    cv2.destroyAllWindows()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, shutdown_handler)
+signal.signal(signal.SIGINT, shutdown_handler)
 
 prev_positions = {}
 
@@ -25,76 +46,83 @@ def get_center(box):
     x1,y1,x2,y2 = box
     return int((x1+x2)/2), int((y1+y2)/2)
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+# ⭐ THIS replaces your while True loop
+def generate_frames():
+    global alert_until_time, standing_frames, sitting_frames
 
-    standing_detected_this_frame = False
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            continue
 
-    results = model.track(frame, persist=True, classes=[0], verbose=False)
+        standing_detected_this_frame = False
 
-    if results[0].boxes.id is not None:
-        boxes = results[0].boxes.xyxy.cpu().numpy()
-        ids = results[0].boxes.id.cpu().numpy()
+        results = model.track(frame, persist=True, classes=[0], verbose=False)
 
-        for box, id in zip(boxes, ids):
-            x1,y1,x2,y2 = map(int, box)
-            cx, cy = get_center(box)
+        if results[0].boxes.id is not None:
+            boxes = results[0].boxes.xyxy.cpu().numpy()
+            ids = results[0].boxes.id.cpu().numpy()
 
-            cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+            for box, id in zip(boxes, ids):
+                x1,y1,x2,y2 = map(int, box)
+                cx, cy = get_center(box)
 
-            # --- STANDING DETECTION ---
-            height = y2 - y1
-            width  = x2 - x1
-            ratio = height / width
+                cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
 
-            if ratio > 2.2:
-                standing_detected_this_frame = True
-                cv2.putText(frame,"STANDING!",
-                            (x1,y2+25),
-                            cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
+                height = y2 - y1
+                width  = x2 - x1
+                ratio = height / width
 
-            # --- HYPER MOVEMENT ---
-            if id in prev_positions:
-                px, py = prev_positions[id]
-                distance = np.sqrt((cx-px)**2 + (cy-py)**2)
-
-                if distance > HYPER_THRESHOLD:
-                    alert_until_time = time.time() + ALERT_DURATION
-                    print("⚠️ ALERT: Hyper movement detected")   # ⭐ IMPORTANT
-                    cv2.putText(frame,"HYPER MOVEMENT!",
-                                (x1,y1-10),
+                if ratio > 2.2:
+                    standing_detected_this_frame = True
+                    cv2.putText(frame,"STANDING!",
+                                (x1,y2+25),
                                 cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
 
-            prev_positions[id] = (cx, cy)
+                if id in prev_positions:
+                    px, py = prev_positions[id]
+                    distance = np.sqrt((cx-px)**2 + (cy-py)**2)
 
-    # Standing stability logic
-    if standing_detected_this_frame:
-        standing_frames += 1
-        sitting_frames = 0
-    else:
-        sitting_frames += 1
-        if sitting_frames > STANDING_CONFIRM_FRAMES:
-            standing_frames = 0
+                    if distance > HYPER_THRESHOLD:
+                        alert_until_time = time.time() + ALERT_DURATION
+                        cv2.putText(frame,"HYPER MOVEMENT!",
+                                    (x1,y1-10),
+                                    cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
 
-    # Hyper movement alert banner
-    if time.time() < alert_until_time:
-        cv2.putText(frame,"ALERT: Suspicious Activity",
-                    (50,50),
-                    cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),3)
+                prev_positions[id] = (cx, cy)
 
-    # Standing alert banner
-    if standing_frames >= STANDING_CONFIRM_FRAMES:
-        print("⚠️ ALERT: Student standing")  # ⭐ IMPORTANT
-        cv2.putText(frame,"ALERT: STUDENT STANDING",
-                    (50,100),
-                    cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),3)
+        # Standing stability logic
+        if standing_detected_this_frame:
+            standing_frames += 1
+            sitting_frames = 0
+        else:
+            sitting_frames += 1
+            if sitting_frames > STANDING_CONFIRM_FRAMES:
+                standing_frames = 0
 
-    cv2.imshow("TrustBus HyperMovement AI", frame)
+        if time.time() < alert_until_time:
+            cv2.putText(frame,"ALERT: Suspicious Activity",
+                        (50,50),
+                        cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),3)
 
-    if cv2.waitKey(1) == 27:
-        break
+        if standing_frames >= STANDING_CONFIRM_FRAMES:
+            cv2.putText(frame,"ALERT: STUDENT STANDING",
+                        (50,100),
+                        cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),3)
 
-cap.release()
-cv2.destroyAllWindows()
+        # ⭐ Convert frame → stream (ONLY NEW PART)
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+# Flask route
+@app.route('/video')
+def video():
+    return Response(generate_frames(),
+        mimetype='multipart/x-mixed-replace; boundary=frame')
+
+if __name__ == "__main__":
+    print("HyperMovement running at http://localhost:8000/video")
+    app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)

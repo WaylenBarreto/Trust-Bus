@@ -1,10 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import { submitSafetyReport } from '../api/auth'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
-import Chatbot from "../components/ui/Chatbotp";
+import Chatbot from "../components/ui/Chatbotp"
 
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -99,28 +99,6 @@ const ParentDashboard = () => {
   const [featureOverlay, setFeatureOverlay] = useState(null) // 'hypermovement' | 'emotion' | null
   const videoRef = useRef(null)
   const streamRef = useRef(null)
-
-  useEffect(() => {
-    if (!featureOverlay || !videoRef.current) return
-    let stream = null
-    const startWebcam = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-        streamRef.current = stream
-        if (videoRef.current) videoRef.current.srcObject = stream
-      } catch (err) {
-        console.warn('Webcam access failed:', err)
-      }
-    }
-    startWebcam()
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop())
-        streamRef.current = null
-      }
-      if (videoRef.current) videoRef.current.srcObject = null
-    }
-  }, [featureOverlay])
 
 const handleReportSubmit = async (e) => {
   e.preventDefault()
@@ -317,12 +295,24 @@ const handleReportSubmit = async (e) => {
 
 
                   <button
-                    type="button"
-                    onClick={() => setFeatureOverlay((v) => (v === 'emotion' ? null : 'emotion'))}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-100 border border-violet-300 text-violet-900 font-medium hover:bg-violet-200 hover:shadow-md transition-all duration-200 cursor-pointer"
-                  >
-                    <span>😊</span> Child&apos;s emotion
-                  </button>
+  type="button"
+  onClick={async () => {
+    // open overlay
+    setFeatureOverlay((v) => (v === 'emotion' ? null : 'emotion'))
+
+    // ⭐ START EMOTION AI (THIS WAS MISSING)
+    try {
+      await fetch("http://localhost:5000/api/ai/start-emotion")
+      console.log("Emotion AI started")
+    } catch (err) {
+      console.error("Failed to start Emotion AI", err)
+    }
+  }}
+  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-100 border border-violet-300 text-violet-900 font-medium hover:bg-violet-200 hover:shadow-md transition-all duration-200 cursor-pointer"
+>
+  <span>😊</span> Child&apos;s emotion
+</button>
+
                 </div>
               </CardContent>
             </Card>
@@ -363,7 +353,17 @@ const handleReportSubmit = async (e) => {
       {featureOverlay && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
-          onClick={() => setFeatureOverlay(null)}
+          onClick={async () => {
+  setFeatureOverlay(null)
+
+  // ⭐ STOP PYTHON CAMERA WHEN POPUP CLOSES
+  try {
+    await fetch("http://localhost:5000/api/ai/stop-ai")
+  } catch (err) {
+    console.log("Failed to stop AI")
+  }
+}}
+
         >
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -373,13 +373,24 @@ const handleReportSubmit = async (e) => {
             className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 relative max-h-[90vh] overflow-y-auto"
           >
             <button
-              type="button"
-              onClick={() => setFeatureOverlay(null)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-slate-800 text-xl"
-              aria-label="Close"
-            >
-              ✕
-            </button>
+  type="button"
+  onClick={async () => {
+    setFeatureOverlay(null)
+
+    // ⭐ STOP PYTHON WHEN X BUTTON CLICKED
+    try {
+      await fetch("http://localhost:5000/api/ai/stop-ai")
+      console.log("AI stopped")
+    } catch (err) {
+      console.log("Failed to stop AI")
+    }
+  }}
+  className="absolute top-4 right-4 text-slate-500 hover:text-slate-800 text-xl"
+  aria-label="Close"
+>
+  ✕
+</button>
+
             {(() => {
               const config = FEATURE_CONFIG[featureOverlay]
               if (!config) return null
@@ -389,15 +400,40 @@ const handleReportSubmit = async (e) => {
                     <span>{config.icon}</span> {config.title}
                   </h3>
                   <div className="mb-4">
-                    <div className="w-full h-[320px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    <div className="w-full h-[420px] rounded-xl overflow-hidden border border-slate-200 bg-black">
+
+  {/* Hypermovement Stream */}
+  {featureOverlay === "hypermovement" && (
+    <img
+      src="http://localhost:8000/video"
+      alt="Hypermovement AI"
+      className="w-full h-full object-contain"
+      onError={(e) => {
+        e.target.onerror = null;
+        setTimeout(() => {
+          e.target.src = "http://localhost:8000/video?retry=" + new Date().getTime();
+        }, 2000);
+      }}
+    />
+  )}
+
+  {/* Emotion Stream */}
+  {featureOverlay === "emotion" && (
+    <img
+      src="http://localhost:8001/video"
+      alt="Emotion AI"
+      className="w-full h-full object-contain"
+      onError={(e) => {
+        e.target.onerror = null;
+        setTimeout(() => {
+          e.target.src = "http://localhost:8001/video?retry=" + new Date().getTime();
+        }, 2000);
+      }}
+    />
+  )}
+
+</div>
+
                   </div>
                   <p className="text-sm text-slate-600">{config.description}</p>
                 </>
