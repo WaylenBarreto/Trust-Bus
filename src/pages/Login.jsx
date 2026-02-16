@@ -1,7 +1,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion"
 import { useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { loginUser } from "../api/auth"
+import { forgotPassword, loginUser, resetPassword } from "../api/auth"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input"
@@ -14,6 +14,12 @@ const Login = () => {
   const [password,setPassword] = useState("")
   const [loading,setLoading] = useState(false)
   const [error,setError] = useState("")
+  // ⭐ FORGOT PASSWORD STATES
+const [showForgot,setShowForgot] = useState(false)
+const [resetStep,setResetStep] = useState(1)
+const [otp,setOtp] = useState("")
+const [newPassword,setNewPassword] = useState("")
+
 
   const x = useMotionValue(0)
   const y = useMotionValue(0)
@@ -44,6 +50,37 @@ const Login = () => {
       setError(err.response?.data?.message || "Login failed")
     } finally { setLoading(false) }
   }
+////////////////////////////////////////////////////////
+// FORGOT PASSWORD FUNCTIONS
+////////////////////////////////////////////////////////
+
+const handleSendOTP = async () => {
+  try {
+    setLoading(true)
+    await forgotPassword({ email })
+    setResetStep(2)
+  } catch(err) {
+    setError(err.response?.data?.message || "Failed to send OTP")
+  } finally {
+    setLoading(false)
+  }
+}
+
+const handleResetPassword = async () => {
+  try {
+    setLoading(true)
+    await resetPassword({ email, otp, newPassword })
+    alert("Password changed successfully 🎉")
+    setShowForgot(false)
+    setResetStep(1)
+    setOtp("")
+    setNewPassword("")
+  } catch(err) {
+    setError(err.response?.data?.message || "Reset failed")
+  } finally {
+    setLoading(false)
+  }
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 p-4">
@@ -70,6 +107,13 @@ const Login = () => {
               <Button className="w-full" disabled={loading}>
                 {loading ? "Logging in..." : "Login"}
               </Button>
+              <p
+  onClick={()=>setShowForgot(true)}
+  className="text-center text-sm text-emerald-600 cursor-pointer"
+>
+  Forgot password?
+</p>
+
 
               <p className="text-center text-sm">
                 Don't have an account?{" "}
@@ -81,8 +125,94 @@ const Login = () => {
           </CardContent>
         </Card>
       </motion.div>
+          {showForgot && (
+        <ForgotPasswordModal
+          step={resetStep}
+          setStep={setResetStep}
+          onClose={()=>setShowForgot(false)}
+          email={email}
+          setEmail={setEmail}
+          otp={otp}
+          setOtp={setOtp}
+          newPassword={newPassword}
+          setNewPassword={setNewPassword}
+          handleSendOTP={handleSendOTP}
+          handleResetPassword={handleResetPassword}
+          loading={loading}
+        />
+      )}
+
     </div>
   )
 }
 
+
+
 export default Login
+///////////////////////////////////////////////////////////////
+// FORGOT PASSWORD MODAL
+///////////////////////////////////////////////////////////////
+const ForgotPasswordModal = ({
+  step,
+  onClose,
+  email,
+  setEmail,
+  otp,
+  setOtp,
+  newPassword,
+  setNewPassword,
+  handleSendOTP,
+  handleResetPassword,
+  loading
+}) => {
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        
+        <h2 className="text-xl font-bold mb-4 text-center text-emerald-600">
+          Reset Password
+        </h2>
+
+        {step === 1 && (
+          <>
+            <Input
+              placeholder="Enter your registered email"
+              value={email}
+              onChange={e=>setEmail(e.target.value)}
+            />
+
+            <Button onClick={handleSendOTP} className="w-full mt-4" disabled={loading}>
+              {loading ? "Sending OTP..." : "Send OTP"}
+            </Button>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <Input
+              placeholder="Enter OTP"
+              value={otp}
+              onChange={e=>setOtp(e.target.value)}
+              className="mb-3"
+            />
+
+            <Input
+              type="password"
+              placeholder="Enter new password"
+              value={newPassword}
+              onChange={e=>setNewPassword(e.target.value)}
+            />
+
+            <Button onClick={handleResetPassword} className="w-full mt-4" disabled={loading}>
+              {loading ? "Resetting..." : "Reset Password"}
+            </Button>
+          </>
+        )}
+
+        <button onClick={onClose} className="mt-4 text-sm text-gray-500 w-full">
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}

@@ -26,3 +26,23 @@ export const submitSafetyReport = (data) =>
 
 export const submitDriverRating = (data) =>
   API.post("/ratings", data);
+export const forgotPassword = async (data) => {
+  const res = await fetch("http://localhost:5000/api/auth/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),   // ⭐ FIXED
+  })
+  return res.json()
+}
+
+
+
+export const resetPassword = async (data) => {
+  const res = await fetch("http://localhost:5000/api/auth/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),   // ⭐ FIXED
+  })
+  return res.json()
+}
+

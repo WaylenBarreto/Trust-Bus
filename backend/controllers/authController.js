@@ -3,8 +3,13 @@ const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
 const sendEmail = require("../utils/sendEmail")
 
+// TEMP STORAGE FOR FORGOT PASSWORD OTP
+const forgotPasswordOTPs = {}
+
 // TEMP STORAGE FOR UNVERIFIED USERS
 const tempUsers = {}
+// TEMP STORAGE FOR PASSWORD RESET
+const resetUsers = {}
 
 const registerUser = async (req, res) => {
   try {
@@ -151,5 +156,77 @@ const loginUser = async (req, res) => {
     res.status(500).json({ message: error.message })
   }
 }
+// SEND FORGOT PASSWORD OTP
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body
 
-module.exports = { registerUser, verifyEmailOTP, resendEmailOTP, loginUser }
+    const user = await User.findOne({ email })
+    if (!user)
+      return res.status(400).json({ message: "No account found with this email" })
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+
+    forgotPasswordOTPs[email] = {
+      otp,
+      expires: Date.now() + 10 * 60 * 1000,
+    }
+
+    await sendEmail(
+      email,
+      "Reset your TrustBus password",
+      `Your password reset OTP is: ${otp}`
+    )
+
+    res.json({ message: "Password reset OTP sent to email" })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+}
+// RESET PASSWORD USING OTP
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body
+
+    const record = forgotPasswordOTPs[email]
+    if (!record)
+      return res.status(400).json({ message: "OTP not requested" })
+
+    if (record.otp !== otp || record.expires < Date.now())
+      return res.status(400).json({ message: "Invalid or expired OTP" })
+
+    // Strong password validation (same as signup)
+    const strongPassword =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/
+
+    if (!strongPassword.test(newPassword)) {
+      return res.status(400).json({
+        message:
+          "Password must be at least 8 characters and include uppercase, lowercase, number and special symbol",
+      })
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+    await User.findOneAndUpdate(
+      { email },
+      { password: hashedPassword }
+    )
+
+    delete forgotPasswordOTPs[email]
+
+    res.json({ message: "Password reset successful 🎉" })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
+module.exports = {
+  registerUser,
+  verifyEmailOTP,
+  resendEmailOTP,
+  loginUser,
+  forgotPassword,
+  resetPassword,
+}
+
