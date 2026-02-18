@@ -122,7 +122,7 @@ const handleSubmit = async (e) => {
                   </div>
 
                   <Button type="submit" className="w-full" disabled={!ticketNumber || rating===0}>
-                    Submit Rating ⭐
+                    Rating
                   </Button>
 
                   <Button variant="ghost" onClick={onClose} className="w-full">

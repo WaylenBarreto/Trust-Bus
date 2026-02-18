@@ -186,40 +186,51 @@ const forgotPassword = async (req, res) => {
 // RESET PASSWORD USING OTP
 const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body
+    const { email, otp, newPassword } = req.body;
 
-    const record = forgotPasswordOTPs[email]
+    const record = forgotPasswordOTPs[email];
     if (!record)
-      return res.status(400).json({ message: "OTP not requested" })
+      return res.status(400).json({ message: "OTP not requested" });
 
     if (record.otp !== otp || record.expires < Date.now())
-      return res.status(400).json({ message: "Invalid or expired OTP" })
+      return res.status(400).json({ message: "Invalid or expired OTP" });
 
-    // Strong password validation (same as signup)
-    const strongPassword =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/
-
-    if (!strongPassword.test(newPassword)) {
-      return res.status(400).json({
-        message:
-          "Password must be at least 8 characters and include uppercase, lowercase, number and special symbol",
-      })
+    // 1. IMPROVED VALIDATION: Check if password exists and trim spaces
+    if (!newPassword || newPassword.trim().length === 0) {
+        return res.status(400).json({ message: "Password cannot be empty" });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    // 2. REFINED REGEX: 
+    // Min 8 chars, 1 Upper, 1 Lower, 1 Number, 1 Special Char
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-    await User.findOneAndUpdate(
+    if (!strongPasswordRegex.test(newPassword)) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters and include uppercase, lowercase, number and special symbol",
+      });
+    }
+
+    // 3. HASH AND SAVE
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const updatedUser = await User.findOneAndUpdate(
       { email },
-      { password: hashedPassword }
-    )
+      { password: hashedPassword },
+      { new: true } // Returns the updated document
+    );
 
-    delete forgotPasswordOTPs[email]
+    if (!updatedUser) {
+        return res.status(404).json({ message: "User not found in database" });
+    }
 
-    res.json({ message: "Password reset successful 🎉" })
+    // Clear the OTP storage
+    delete forgotPasswordOTPs[email];
+
+    res.json({ message: "Password reset successful 🎉" });
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    res.status(500).json({ message: error.message });
   }
-}
+};
 
 module.exports = {
   registerUser,

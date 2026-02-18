@@ -150,7 +150,7 @@ const handleResetPassword = async () => {
 
 export default Login
 ///////////////////////////////////////////////////////////////
-// FORGOT PASSWORD MODAL
+// FORGOT PASSWORD MODAL (Updated with Validation)
 ///////////////////////////////////////////////////////////////
 const ForgotPasswordModal = ({
   step,
@@ -165,8 +165,22 @@ const ForgotPasswordModal = ({
   handleResetPassword,
   loading
 }) => {
+  // --- PASSWORD VALIDATION LOGIC ---
+  const validatePassword = (pass) => {
+    return {
+      length: pass.length >= 8,
+      upper: /[A-Z]/.test(pass),
+      lower: /[a-z]/.test(pass),
+      number: /[0-9]/.test(pass),
+      special: /[@$!%*?&]/.test(pass),
+    }
+  }
+
+  const checks = validatePassword(newPassword)
+  const isPasswordValid = Object.values(checks).every(Boolean)
+
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
         
         <h2 className="text-xl font-bold mb-4 text-center text-emerald-600">
@@ -174,42 +188,70 @@ const ForgotPasswordModal = ({
         </h2>
 
         {step === 1 && (
-          <>
+          <div className="space-y-4">
             <Input
               placeholder="Enter your registered email"
+              type="email"
               value={email}
               onChange={e=>setEmail(e.target.value)}
             />
 
-            <Button onClick={handleSendOTP} className="w-full mt-4" disabled={loading}>
+            <Button onClick={handleSendOTP} className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
               {loading ? "Sending OTP..." : "Send OTP"}
             </Button>
-          </>
+          </div>
         )}
 
         {step === 2 && (
-          <>
+          <div className="space-y-3">
             <Input
               placeholder="Enter OTP"
               value={otp}
               onChange={e=>setOtp(e.target.value)}
-              className="mb-3"
             />
 
-            <Input
-              type="password"
-              placeholder="Enter new password"
-              value={newPassword}
-              onChange={e=>setNewPassword(e.target.value)}
-            />
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={e=>setNewPassword(e.target.value)}
+              />
+              
+              {/* Visual Validation Helper */}
+              <div className="grid grid-cols-2 gap-1 text-[11px] p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className={checks.length ? "text-green-600 font-medium" : "text-slate-400"}>
+                  {checks.length ? "✓" : "○"} 8+ Characters
+                </p>
+                <p className={checks.upper ? "text-green-600 font-medium" : "text-slate-400"}>
+                  {checks.upper ? "✓" : "○"} Uppercase
+                </p>
+                <p className={checks.lower ? "text-green-600 font-medium" : "text-slate-400"}>
+                  {checks.lower ? "✓" : "○"} Lowercase
+                </p>
+                <p className={checks.number ? "text-green-600 font-medium" : "text-slate-400"}>
+                  {checks.number ? "✓" : "○"} Number
+                </p>
+                <p className={checks.special ? "text-green-600 font-medium" : "text-slate-400"}>
+                  {checks.special ? "✓" : "○"} Special Symbol
+                </p>
+              </div>
+            </div>
 
-            <Button onClick={handleResetPassword} className="w-full mt-4" disabled={loading}>
+            <Button 
+              onClick={handleResetPassword} 
+              className="w-full bg-emerald-600 hover:bg-emerald-700" 
+              disabled={loading || !isPasswordValid}
+            >
               {loading ? "Resetting..." : "Reset Password"}
             </Button>
-          </>
+          </div>
         )}
 
-        <button onClick={onClose} className="mt-4 text-sm text-gray-500 w-full">
+        <button 
+          onClick={onClose} 
+          className="mt-4 text-sm text-gray-400 hover:text-gray-600 w-full transition-colors"
+        >
           Cancel
         </button>
       </div>

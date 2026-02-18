@@ -72,7 +72,7 @@ const BusInspection = ({ bus, onClose, onShowRating }) => {
             onClick={onShowRating}
             className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
-            Proceed to Rating ⭐
+            Passenger Boarded
           </button>
         </div>
 

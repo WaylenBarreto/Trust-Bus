@@ -33,13 +33,7 @@ const TopBar = () => {
             </div>
           </div>
 
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
-          >
-            Logout
-          </button>
+       
 
         </div>
       </div>
@@ -48,3 +42,10 @@ const TopBar = () => {
 }
 
 export default TopBar
+//   {/* Logout */}
+   //       <button
+     //       onClick={handleLogout}
+    //        className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+    //      >
+    //        Logout
+        //  </button>

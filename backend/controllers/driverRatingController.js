@@ -12,7 +12,7 @@ const submitDriverRating = async (req, res) => {
       busRoute
     })
 
-    res.status(201).json({ message: "Rating submitted", newRating })
+    res.status(201).json({ message: "Boarded successfully", newRating })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
