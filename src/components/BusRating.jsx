@@ -1,45 +1,58 @@
 import { AnimatePresence, motion } from "framer-motion"
 import { useState } from "react"
-import { submitDriverRating } from "../api/auth"
+import axios from "axios"
 import { Button } from "./ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Input } from "./ui/input"
 
 const user = JSON.parse(localStorage.getItem("user"))
+
 const BusRating = ({ bus, onClose }) => {
   const [ticketNumber, setTicketNumber] = useState("")
   const [rating, setRating] = useState(0)
   const [hoveredRating, setHoveredRating] = useState(0)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
 
-  // Safety guard
   if (!bus) return null
 
-const handleSubmit = async (e) => {
-  e.preventDefault()
-  if (!ticketNumber || rating === 0) return
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  try {
-    await submitDriverRating({
-      username: user.name,
-      email: user.email,
-      ticketNumber: ticketNumber,
-      rating: rating,
-      busRoute: `${bus.id} - ${bus.route}`
-    })
+    if (!ticketNumber || rating === 0) {
+      setErrorMessage("Please enter ticket number and rating")
+      return
+    }
 
-    setIsSubmitted(true)
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/reviews/submit-review",
+        {
+          username: user?.name,
+          email: user?.email,
+          ticketNumber: ticketNumber,
+          rating: rating,
+          busRoute: `${bus.id} - ${bus.route}`
+        }
+      )
 
-    setTimeout(() => {
-      onClose()
-    }, 2000)
+      setErrorMessage("")
+      setIsSubmitted(true)
 
-  } catch (error) {
-    alert("Failed to submit rating")
-    console.log(error)
+      setTimeout(() => {
+        onClose()
+      }, 2000)
+
+    } catch (error) {
+      console.log(error)
+
+      if (error.response?.data?.message) {
+        setErrorMessage(error.response.data.message)
+      } else {
+        setErrorMessage("Server error. Try again.")
+      }
+    }
   }
-}
-
 
   return (
     <AnimatePresence>
@@ -76,14 +89,14 @@ const handleSubmit = async (e) => {
             <CardContent className="p-6">
               {!isSubmitted ? (
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  
+
                   {/* Ticket */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">
                       Ticket Number
                     </label>
                     <Input
-                      placeholder="e.g. TB123456"
+                      placeholder="e.g. abcd1234"
                       value={ticketNumber}
                       onChange={(e) => setTicketNumber(e.target.value)}
                       required
@@ -121,8 +134,18 @@ const handleSubmit = async (e) => {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={!ticketNumber || rating===0}>
-                    Rating
+                  {errorMessage && (
+                    <div className="text-red-500 text-sm text-center">
+                      {errorMessage}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!ticketNumber || rating === 0}
+                  >
+                    Submit Rating
                   </Button>
 
                   <Button variant="ghost" onClick={onClose} className="w-full">
@@ -137,7 +160,9 @@ const handleSubmit = async (e) => {
                 >
                   <div className="text-5xl mb-3">✅</div>
                   <h3 className="text-xl font-bold">Thank you!</h3>
-                  <p className="text-gray-500">Rating submitted successfully</p>
+                  <p className="text-gray-500">
+                    Rating submitted successfully
+                  </p>
                 </motion.div>
               )}
             </CardContent>

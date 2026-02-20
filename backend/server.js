@@ -24,6 +24,7 @@ app.use("/api/ratings", driverRatingRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/bus", busRoutes); // ⭐ ADD THIS
 
+
 // ---------------- MongoDB ----------------
 mongoose
   .connect(process.env.MONGO_URI)
@@ -40,3 +41,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>
   console.log(`Server running on port ${PORT}`)
 );
+
+const reviewRoutes = require("./routes/reviewroutes");
+app.use("/api/reviews", reviewRoutes);
