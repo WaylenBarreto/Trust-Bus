@@ -34,10 +34,15 @@ const userSchema = new mongoose.Schema({
     default: "",
   },
 
-  // ⭐ NEW FIELD
   studentId: {
     type: String,
     default: "",
+  },
+
+  // ⭐ LINK TO SCHOOL
+  schoolID: {
+    type: String,
+    default: "", // Parents will provide this to see school-specific bus info
   },
 
   isEmailVerified: {

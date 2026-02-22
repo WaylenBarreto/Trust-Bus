@@ -1,7 +1,8 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion"
 import { useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { forgotPassword, loginUser, resetPassword } from "../api/auth"
+// Added loginSchool to your imports
+import { forgotPassword, loginSchool, loginUser, resetPassword } from "../api/auth"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input"
@@ -10,126 +11,188 @@ const Login = () => {
   const navigate = useNavigate()
   const cardRef = useRef(null)
 
-  const [email,setEmail] = useState("")
-  const [password,setPassword] = useState("")
-  const [loading,setLoading] = useState(false)
-  const [error,setError] = useState("")
-  // ⭐ FORGOT PASSWORD STATES
-const [showForgot,setShowForgot] = useState(false)
-const [resetStep,setResetStep] = useState(1)
-const [otp,setOtp] = useState("")
-const [newPassword,setNewPassword] = useState("")
-
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  
+  const [showForgot, setShowForgot] = useState(false)
+  const [resetStep, setResetStep] = useState(1)
+  const [otp, setOtp] = useState("")
+  const [newPassword, setNewPassword] = useState("")
 
   const x = useMotionValue(0)
   const y = useMotionValue(0)
-  const rotateX = useTransform(useSpring(y), [-0.5,0.5],[8,-8])
-  const rotateY = useTransform(useSpring(x), [-0.5,0.5],[-8,8])
+  const rotateX = useTransform(useSpring(y), [-0.5, 0.5], [8, -8])
+  const rotateY = useTransform(useSpring(x), [-0.5, 0.5], [-8, 8])
 
-  const handleMouseMove = (e)=>{
+  const handleMouseMove = (e) => {
     const rect = cardRef.current.getBoundingClientRect()
-    x.set((e.clientX - rect.left - rect.width/2)/(rect.width/2))
-    y.set((e.clientY - rect.top - rect.height/2)/(rect.height/2))
+    x.set((e.clientX - rect.left - rect.width / 2) / (rect.width / 2))
+    y.set((e.clientY - rect.top - rect.height / 2) / (rect.height / 2))
   }
 
-  const isValidEmail = email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
-  const handleLogin = async e => {
+  // UPDATED LOGIN LOGIC
+  const handleLogin = async (e) => {
     e.preventDefault()
     setError("")
-    if(!email || !password) return setError("Fill all fields")
-    if(!isValidEmail(email)) return setError("Invalid email")
+    if (!email || !password) return setError("Fill all fields")
+    if (!isValidEmail(email)) return setError("Invalid email")
 
     try {
       setLoading(true)
-      const res = await loginUser({email,password})
-      localStorage.setItem("token", res.data.token)
-      localStorage.setItem("user", JSON.stringify(res.data.user))
-      navigate(res.data.user.role==="parent"?"/parent-dashboard":"/dashboard")
-    } catch(err){
-      setError(err.response?.data?.message || "Login failed")
-    } finally { setLoading(false) }
+      
+      // 1. Attempt Standard User Login
+      try {
+        const res = await loginUser({ email, password })
+        localStorage.setItem("token", res.data.token)
+        localStorage.setItem("user", JSON.stringify(res.data.user))
+        
+        // Redirect based on role
+        if (res.data.user.role === "parent") {
+          navigate("/parent-dashboard")
+        } else {
+          navigate("/dashboard")
+        }
+      } catch (userErr) {
+        // 2. If standard login fails, try School Login
+        try {
+          const schoolRes = await loginSchool({ email, password })
+          localStorage.setItem("token", schoolRes.data.token)
+          // Store school data with a 'school' role for ProtectedRoute
+          localStorage.setItem("user", JSON.stringify({ ...schoolRes.data.school, role: 'school' }))
+          navigate("/school-dashboard")
+        } catch (schoolErr) {
+          // If both fail, then show the error
+          setError("Invalid email or password")
+        }
+      }
+    } catch (err) {
+      setError("An unexpected error occurred")
+    } finally {
+      setLoading(false)
+    }
   }
-////////////////////////////////////////////////////////
-// FORGOT PASSWORD FUNCTIONS
-////////////////////////////////////////////////////////
 
-const handleSendOTP = async () => {
-  try {
-    setLoading(true)
-    await forgotPassword({ email })
-    setResetStep(2)
-  } catch(err) {
-    setError(err.response?.data?.message || "Failed to send OTP")
-  } finally {
-    setLoading(false)
+  const handleSendOTP = async () => {
+    setError("")
+    if (!email || !email.trim()) {
+      setError("Please enter your email")
+      return
+    }
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email")
+      return
+    }
+    try {
+      setLoading(true)
+      await forgotPassword({ email: email.trim() })
+      setResetStep(2)
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to send OTP")
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
-const handleResetPassword = async () => {
-  try {
-    setLoading(true)
-    await resetPassword({ email, otp, newPassword })
-    alert("Password changed successfully 🎉")
+  const handleResetPassword = async () => {
+    setError("")
+    if (!email || !email.trim()) {
+      setError("Email is required")
+      return
+    }
+    try {
+      setLoading(true)
+      await resetPassword({ email: email.trim(), otp, newPassword })
+      setError("")
+      setShowForgot(false)
+      setResetStep(1)
+      setOtp("")
+      setNewPassword("")
+      alert("Password changed successfully 🎉")
+    } catch (err) {
+      setError(err.response?.data?.message || "Reset failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOpenForgot = () => {
+    setError("")
+    setShowForgot(true)
+  }
+
+  const handleCloseForgot = () => {
+    setError("")
     setShowForgot(false)
     setResetStep(1)
     setOtp("")
     setNewPassword("")
-  } catch(err) {
-    setError(err.response?.data?.message || "Reset failed")
-  } finally {
-    setLoading(false)
   }
-}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-950 via-slate-900 to-teal-950 p-4">
       <motion.div
         ref={cardRef}
         onMouseMove={handleMouseMove}
-        style={{rotateX,rotateY,transformStyle:"preserve-3d"}}
+        style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
         className="w-full max-w-md"
       >
         <Card className="shadow-2xl rounded-3xl bg-white/95 backdrop-blur-xl">
           <CardHeader>
-            <CardTitle className="text-3xl text-center text-emerald-600">
+            <CardTitle className="text-3xl text-center text-emerald-600 font-bold">
               TrustBus Login
             </CardTitle>
           </CardHeader>
 
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              {error && <div className="text-red-500 text-center">{error}</div>}
+              {error && <div className="text-red-500 text-center bg-red-50 p-2 rounded-lg">{error}</div>}
 
-              <Input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-              <Input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} />
+              <Input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="rounded-xl" />
+              <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="rounded-xl" />
 
-              <Button className="w-full" disabled={loading}>
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 py-6 rounded-xl text-lg" disabled={loading}>
                 {loading ? "Logging in..." : "Login"}
               </Button>
-              <p
-  onClick={()=>setShowForgot(true)}
-  className="text-center text-sm text-emerald-600 cursor-pointer"
->
-  Forgot password?
-</p>
 
+              <div className="flex flex-col gap-3 pt-2">
+                <p onClick={handleOpenForgot} className="text-center text-sm text-emerald-600 cursor-pointer hover:underline">
+                  Forgot password?
+                </p>
 
-              <p className="text-center text-sm">
-                Don't have an account?{" "}
-                <span onClick={()=>navigate("/signup")} className="text-emerald-600 cursor-pointer">
-                  Sign up
-                </span>
-              </p>
+                <p className="text-center text-sm">
+                  Don't have an account?{" "}
+                  <span onClick={() => navigate("/signup")} className="text-emerald-600 font-bold cursor-pointer hover:underline">
+                    Sign up
+                  </span>
+                </p>
+
+                <div className="relative flex py-2 items-center">
+                  <div className="flex-grow border-t border-gray-200"></div>
+                  <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase tracking-widest font-medium">OR</span>
+                  <div className="flex-grow border-t border-gray-200"></div>
+                </div>
+
+                <p className="text-center text-sm">
+                  Registering a school?{" "}
+                  <span onClick={() => navigate("/school-signup")} className="text-emerald-600 font-bold cursor-pointer hover:underline">
+                    School Portal
+                  </span>
+                </p>
+              </div>
             </form>
           </CardContent>
         </Card>
       </motion.div>
-          {showForgot && (
+
+      {showForgot && (
         <ForgotPasswordModal
           step={resetStep}
           setStep={setResetStep}
-          onClose={()=>setShowForgot(false)}
+          onClose={handleCloseForgot}
           email={email}
           setEmail={setEmail}
           otp={otp}
@@ -139,21 +202,17 @@ const handleResetPassword = async () => {
           handleSendOTP={handleSendOTP}
           handleResetPassword={handleResetPassword}
           loading={loading}
+          error={error}
         />
       )}
-
     </div>
   )
 }
 
-
-
-export default Login
-///////////////////////////////////////////////////////////////
-// FORGOT PASSWORD MODAL (Updated with Validation)
-///////////////////////////////////////////////////////////////
+// Forgot Password Modal - works for both users and schools
 const ForgotPasswordModal = ({
   step,
+  setStep,
   onClose,
   email,
   setEmail,
@@ -163,98 +222,121 @@ const ForgotPasswordModal = ({
   setNewPassword,
   handleSendOTP,
   handleResetPassword,
-  loading
+  loading,
+  error,
 }) => {
-  // --- PASSWORD VALIDATION LOGIC ---
-  const validatePassword = (pass) => {
-    return {
-      length: pass.length >= 8,
-      upper: /[A-Z]/.test(pass),
-      lower: /[a-z]/.test(pass),
-      number: /[0-9]/.test(pass),
-      special: /[@$!%*?&]/.test(pass),
-    }
-  }
-
+  const validatePassword = (pass) => ({
+    length: pass.length >= 8,
+    upper: /[A-Z]/.test(pass),
+    lower: /[a-z]/.test(pass),
+    number: /[0-9]/.test(pass),
+    special: /[@$!%*?&]/.test(pass),
+  })
   const checks = validatePassword(newPassword)
   const isPasswordValid = Object.values(checks).every(Boolean)
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-        
-        <h2 className="text-xl font-bold mb-4 text-center text-emerald-600">
-          Reset Password
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-500 hover:text-slate-800 text-xl"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+
+        <h2 className="text-2xl font-bold text-emerald-600 text-center mb-4">
+          Forgot Password
         </h2>
+        <p className="text-sm text-slate-600 text-center mb-4">
+          Works for both parents and school accounts
+        </p>
 
-        {step === 1 && (
-          <div className="space-y-4">
-            <Input
-              placeholder="Enter your registered email"
-              type="email"
-              value={email}
-              onChange={e=>setEmail(e.target.value)}
-            />
-
-            <Button onClick={handleSendOTP} className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
-              {loading ? "Sending OTP..." : "Send OTP"}
-            </Button>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
+            {error}
           </div>
         )}
 
-        {step === 2 && (
-          <div className="space-y-3">
+        {step === 1 && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSendOTP()
+            }}
+            className="space-y-4"
+          >
             <Input
-              placeholder="Enter OTP"
-              value={otp}
-              onChange={e=>setOtp(e.target.value)}
+              placeholder="Enter your email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="rounded-xl"
             />
+            <Button
+              type="submit"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 py-5 rounded-xl"
+              disabled={loading}
+            >
+              {loading ? "Sending OTP..." : "Send OTP"}
+            </Button>
+          </form>
+        )}
 
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="Enter new password"
-                value={newPassword}
-                onChange={e=>setNewPassword(e.target.value)}
-              />
-              
-              {/* Visual Validation Helper */}
-              <div className="grid grid-cols-2 gap-1 text-[11px] p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <p className={checks.length ? "text-green-600 font-medium" : "text-slate-400"}>
-                  {checks.length ? "✓" : "○"} 8+ Characters
-                </p>
-                <p className={checks.upper ? "text-green-600 font-medium" : "text-slate-400"}>
-                  {checks.upper ? "✓" : "○"} Uppercase
-                </p>
-                <p className={checks.lower ? "text-green-600 font-medium" : "text-slate-400"}>
-                  {checks.lower ? "✓" : "○"} Lowercase
-                </p>
-                <p className={checks.number ? "text-green-600 font-medium" : "text-slate-400"}>
-                  {checks.number ? "✓" : "○"} Number
-                </p>
-                <p className={checks.special ? "text-green-600 font-medium" : "text-slate-400"}>
-                  {checks.special ? "✓" : "○"} Special Symbol
-                </p>
-              </div>
+        {step === 2 && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleResetPassword()
+            }}
+            className="space-y-4"
+          >
+            <Input
+              placeholder="Enter OTP from email"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="rounded-xl"
+            />
+            <Input
+              type="password"
+              placeholder="New password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="rounded-xl"
+            />
+            <div className="grid grid-cols-2 gap-1 text-[10px] p-2 bg-slate-50 rounded-lg">
+              <p className={checks.length ? "text-green-600" : "text-slate-400"}>● 8+ chars</p>
+              <p className={checks.upper ? "text-green-600" : "text-slate-400"}>● Uppercase</p>
+              <p className={checks.lower ? "text-green-600" : "text-slate-400"}>● Lowercase</p>
+              <p className={checks.number ? "text-green-600" : "text-slate-400"}>● Number</p>
+              <p className={checks.special ? "text-green-600" : "text-slate-400"}>● Symbol</p>
             </div>
-
-            <Button 
-              onClick={handleResetPassword} 
-              className="w-full bg-emerald-600 hover:bg-emerald-700" 
+            <Button
+              type="submit"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 py-5 rounded-xl"
               disabled={loading || !isPasswordValid}
             >
               {loading ? "Resetting..." : "Reset Password"}
             </Button>
-          </div>
+          </form>
         )}
 
-        <button 
-          onClick={onClose} 
-          className="mt-4 text-sm text-gray-400 hover:text-gray-600 w-full transition-colors"
+        <p
+          onClick={onClose}
+          className="text-center mt-4 text-sm text-emerald-600 cursor-pointer hover:underline"
         >
-          Cancel
-        </button>
+          Back to Login
+        </p>
       </div>
     </div>
   )
 }
+
+export default Login

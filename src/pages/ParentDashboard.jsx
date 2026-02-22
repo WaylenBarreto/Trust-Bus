@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import { submitSafetyReport } from '../api/auth'
+import { getSchoolByID } from '../api/school'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
 import Chatbot from "../components/ui/Chatbotp"
@@ -11,15 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 
 const user = JSON.parse(localStorage.getItem("user"))
-
-const childData = {
-  name: user?.childName || "Child",
-  school: "PCCE School",
-  bus: "BUS101",
-  status: "On Bus",
-  pickupTime: "7:45 AM",
-  dropTime: "3:30 PM",
-}
 
 const busLocation = [15.2993, 74.1240]
 
@@ -97,10 +89,37 @@ const ParentDashboard = () => {
   const [reportForm, setReportForm] = useState({ type: '', description: '', location: '' })
   const [reportSubmitted, setReportSubmitted] = useState(false)
   const [featureOverlay, setFeatureOverlay] = useState(null) // 'hypermovement' | 'emotion' | null
+  const [schoolData, setSchoolData] = useState({ schoolID: user?.schoolID || '', schoolName: '', busNumber: '' })
   const videoRef = useRef(null)
   const streamRef = useRef(null)
 
-const handleReportSubmit = async (e) => {
+  // Fetch school details from backend using schoolID from signup
+  useEffect(() => {
+    const fetchSchool = async () => {
+      const sid = user?.schoolID
+      if (!sid) return
+      try {
+        const res = await getSchoolByID(sid)
+        const { schoolID, schoolName, busNumber } = res.data
+        setSchoolData({ schoolID, schoolName, busNumber })
+      } catch (err) {
+        console.warn('Could not fetch school:', err?.response?.data?.message || err.message)
+      }
+    }
+    fetchSchool()
+  }, [])
+
+  const childData = {
+    name: user?.childName || "Child",
+    school: schoolData.schoolName || "—",
+    schoolID: schoolData.schoolID || user?.schoolID || "—",
+    bus: schoolData.busNumber || "—",
+    status: "On Bus",
+    pickupTime: "7:45 AM",
+    dropTime: "3:30 PM",
+  }
+
+  const handleReportSubmit = async (e) => {
   e.preventDefault()
 
   if (!reportForm.type || !reportForm.description.trim()) return
@@ -263,6 +282,14 @@ const handleReportSubmit = async (e) => {
                   <div className="flex items-center gap-3 rounded-lg bg-slate-100 p-3 border border-slate-200 transition-all duration-200 hover:bg-slate-200/80 hover:shadow-md cursor-default">
                     <span className="text-slate-600">Bus</span>
                     <span className="font-semibold text-slate-800">{childData.bus}</span>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-lg bg-slate-100 p-3 border border-slate-200 transition-all duration-200 hover:bg-slate-200/80 hover:shadow-md cursor-default">
+                    <span className="text-slate-600">School ID</span>
+                    <span className="font-semibold text-slate-800">{childData.schoolID}</span>
+                  </div>
+                  <div className="flex items-center gap-3 rounded-lg bg-slate-100 p-3 border border-slate-200 transition-all duration-200 hover:bg-slate-200/80 hover:shadow-md cursor-default">
+                    <span className="text-slate-600">School Name</span>
+                    <span className="font-semibold text-slate-800">{childData.school}</span>
                   </div>
                   <div className="flex items-center gap-3 rounded-lg bg-slate-100 p-3 border border-slate-200 transition-all duration-200 hover:bg-slate-200/80 hover:shadow-md cursor-default">
                     <span className="text-slate-600">Pickup</span>

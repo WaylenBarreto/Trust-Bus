@@ -4,11 +4,12 @@ const cors = require("cors");
 require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
+const schoolRoutes = require("./routes/schoolRoutes");
 const dialogflowRoutes = require("./routes/dialogflowRoutes");
 const safetyReportRoutes = require("./routes/safetyReportRoutes");
 const driverRatingRoutes = require("./routes/driverRatingRoutes");
 const aiRoutes = require("./routes/aiRoutes");
-const busRoutes = require("./routes/busRoutes"); // ⭐ ADD THIS
+const busRoutes = require("./routes/busRoutes");
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 
 // ---------------- Routes ----------------
 app.use("/api/auth", authRoutes);
+app.use("/api/school", schoolRoutes);
 app.use("/api/dialogflow", dialogflowRoutes);
 app.use("/api/reports", safetyReportRoutes);
 app.use("/api/ratings", driverRatingRoutes);
