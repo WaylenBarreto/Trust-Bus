@@ -1,7 +1,8 @@
+import axios from 'axios'
 import { motion } from 'framer-motion'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import BusInspection from '../components/BusInspection'
 import BusRating from '../components/BusRating'
@@ -68,9 +69,37 @@ const Dashboard = () => {
   const [activePage, setActivePage] = useState('Home')
   const [selectedBus, setSelectedBus] = useState(null)
   const [showRating, setShowRating] = useState(false)
+  const [liveBusMap, setLiveBusMap] = useState({})
 
   const mapCenter = [15.2993, 74.1240]
   const userLocationVerna = [15.358, 73.892] // User location: Verna (inland, South Goa)
+
+  // Fetch live bus data (location + passenger count) once on mount
+  useEffect(() => {
+    const fetchLiveBuses = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/bus')
+        const map = {}
+        res.data.forEach((bus) => {
+          if (bus.busId) {
+            map[bus.busId] = bus
+          }
+        })
+        setLiveBusMap(map)
+      } catch (err) {
+        console.warn('Failed to load live bus data', err)
+      }
+    }
+    fetchLiveBuses()
+  }, [])
+
+  const getBusLocation = (bus) => {
+    const live = liveBusMap[bus.id]
+    if (live && live.location && typeof live.location.lat === 'number' && typeof live.location.lng === 'number') {
+      return [live.location.lat, live.location.lng]
+    }
+    return bus.location
+  }
 
   const renderContent = () => {
     switch (activePage) {
@@ -132,7 +161,7 @@ const Dashboard = () => {
                 <MapContainer center={mapCenter} zoom={11} style={{height:"100%"}}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
                   {dummyBuses.map(bus=>(
-                    <Marker key={bus.id} position={bus.location}>
+                    <Marker key={bus.id} position={getBusLocation(bus)}>
                       <Popup>{bus.id}</Popup>
                     </Marker>
                   ))}
@@ -193,7 +222,7 @@ const Dashboard = () => {
                       <Popup><strong>Verna</strong><br />Your location</Popup>
                     </Marker>
                     {dummyBuses.map((bus) => (
-                      <Marker key={bus.id} position={bus.location}>
+                      <Marker key={bus.id} position={getBusLocation(bus)}>
                         <Popup><strong>{bus.id}</strong><br />{bus.route}<br />ETA: {bus.eta}</Popup>
                       </Marker>
                     ))}
@@ -216,6 +245,7 @@ const Dashboard = () => {
                       <TableHead>Name</TableHead>
                       <TableHead>ETA (AI)</TableHead>
                       <TableHead>Crowd</TableHead>
+                      <TableHead>Passengers</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Fee (Student half) ₹</TableHead>
                     </TableRow>
@@ -223,6 +253,7 @@ const Dashboard = () => {
                   <TableBody>
                     {dummyBuses.map((bus) => {
                       const style = getStatusStyle(bus.status)
+                      const live = liveBusMap[bus.id]
                       return (
                         <TableRow
                           key={bus.id}
@@ -239,6 +270,9 @@ const Dashboard = () => {
                             <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getCrowdStyle(bus.crowdLevel)}`}>
                               {bus.crowdLevel}
                             </span>
+                          </TableCell>
+                          <TableCell>
+                            {bus.id === 'BUS330' && live ? live.passengerCount : '—'}
                           </TableCell>
                           <TableCell>
                             <span className={`font-semibold ${style.text}`}>{bus.status}</span>

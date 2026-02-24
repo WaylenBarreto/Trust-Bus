@@ -5,31 +5,26 @@ const Bus = require("../models/bus");
 // ESP32 sends data here
 router.post("/update", async (req, res) => {
   try {
-    const {
-      busId,
-      latitude,
-      longitude,
-      speedKmph,
-      passengerCount,
-    } = req.body;
+    const { busId, lat, lon, count, speed } = req.body;
 
-    if (!busId) {
-      return res.status(400).json({ error: "busId required" });
+    if (!busId || lat === undefined || lon === undefined) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    await Bus.findOneAndUpdate(
+    const updatedBus = await Bus.findOneAndUpdate(
       { busId },
       {
         busId,
-        location: { lat: latitude, lng: longitude },
-        speedKmph,
-        passengerCount,
+        location: { lat, lng: lon },
+        speedKmph: speed || 0,
+        passengerCount: count || 0,
         updatedAt: Date.now(),
       },
       { upsert: true, new: true }
     );
 
-    res.status(200).json({ message: "Bus data updated" });
+    res.status(200).json({ message: "Bus updated", updatedBus });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
