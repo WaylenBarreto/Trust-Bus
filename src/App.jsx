@@ -4,9 +4,9 @@ import Loading from "./components/Loading"
 import Dashboard from "./pages/Dashboard"
 import Login from "./pages/Login"
 import ParentDashboard from "./pages/ParentDashboard"
-import SchoolSignup from "./pages/SchoolSignup"; // Import the new School Signup page
+import SchoolDashboard from "./pages/SchoolDashboard"
+import SchoolSignup from "./pages/SchoolSignup"
 import Signup from "./pages/Signup"
-// import SchoolDashboard from "./pages/SchoolDashboard" // Uncomment once you create this file
 
 // 🔒 Protected Route
 const ProtectedRoute = ({ children, role }) => {
@@ -64,16 +64,12 @@ function App() {
           }
         />
 
-        {/* School Dashboard (The Safety Module) */}
+        {/* School Dashboard (School / Driver portal) */}
         <Route
           path="/school-dashboard"
           element={
             <ProtectedRoute role="school">
-              {/* Replace with your SchoolDashboard component once created */}
-              <div className="p-10 text-center">
-                <h1 className="text-2xl font-bold">School Admin Dashboard</h1>
-                <p>Safety monitoring and bus tracking will appear here.</p>
-              </div>
+              <SchoolDashboard />
             </ProtectedRoute>
           }
         />

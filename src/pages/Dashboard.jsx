@@ -52,6 +52,14 @@ const getCrowdStyle = (level) => {
   }
 }
 
+// Derive crowd level based on passenger count
+const getCrowdLevelFromPassengers = (count) => {
+  if (typeof count !== 'number') return null
+  if (count < 15) return "Low"
+  if (count < 23) return "Medium"
+  return "High"
+}
+
 /** Small green bus icon: green body, white windows, blue wheels (facing right) */
 const BusIcon = ({ className = '' }) => (
   <svg className={className} viewBox="0 0 56 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
@@ -74,8 +82,10 @@ const Dashboard = () => {
   const mapCenter = [15.2993, 74.1240]
   const userLocationVerna = [15.358, 73.892] // User location: Verna (inland, South Goa)
 
-  // Fetch live bus data (location + passenger count) once on mount
+  // Fetch live bus data (location + passenger count) on mount and then every 5 seconds
   useEffect(() => {
+    let isMounted = true
+
     const fetchLiveBuses = async () => {
       try {
         const res = await axios.get('http://localhost:5000/api/bus')
@@ -85,12 +95,21 @@ const Dashboard = () => {
             map[bus.busId] = bus
           }
         })
-        setLiveBusMap(map)
+        if (isMounted) {
+          setLiveBusMap(map)
+        }
       } catch (err) {
         console.warn('Failed to load live bus data', err)
       }
     }
+
     fetchLiveBuses()
+    const intervalId = setInterval(fetchLiveBuses, 5000)
+
+    return () => {
+      isMounted = false
+      clearInterval(intervalId)
+    }
   }, [])
 
   const getBusLocation = (bus) => {
@@ -254,6 +273,11 @@ const Dashboard = () => {
                     {dummyBuses.map((bus) => {
                       const style = getStatusStyle(bus.status)
                       const live = liveBusMap[bus.id]
+                      const passengerCount = bus.id === 'BUS330' && live ? live.passengerCount : null
+                      const dynamicCrowdLevel =
+                        bus.id === 'BUS330' && passengerCount !== null
+                          ? getCrowdLevelFromPassengers(passengerCount)
+                          : bus.crowdLevel
                       return (
                         <TableRow
                           key={bus.id}
@@ -267,12 +291,12 @@ const Dashboard = () => {
                             <span className={`font-semibold ${style.text}`}>{bus.eta}</span>
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getCrowdStyle(bus.crowdLevel)}`}>
-                              {bus.crowdLevel}
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getCrowdStyle(dynamicCrowdLevel)}`}>
+                              {dynamicCrowdLevel}
                             </span>
                           </TableCell>
                           <TableCell>
-                            {bus.id === 'BUS330' && live ? live.passengerCount : '—'}
+                            {passengerCount !== null ? passengerCount : '—'}
                           </TableCell>
                           <TableCell>
                             <span className={`font-semibold ${style.text}`}>{bus.status}</span>

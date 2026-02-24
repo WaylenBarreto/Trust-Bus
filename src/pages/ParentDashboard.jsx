@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
@@ -13,7 +14,9 @@ import { Input } from '../components/ui/input'
 
 const user = JSON.parse(localStorage.getItem("user"))
 
-const busLocation = [15.2993, 74.1240]
+// Fallback bus location (used until live data is available)
+const defaultBusLocation = [15.2993, 74.1240]
+const CHILD_BUS_ID = 'BUS330'
 
 // animations
 const containerVariants = {
@@ -92,6 +95,8 @@ const ParentDashboard = () => {
   const [schoolData, setSchoolData] = useState({ schoolID: user?.schoolID || '', schoolName: '', busNumber: '' })
   const videoRef = useRef(null)
   const streamRef = useRef(null)
+  const [liveBusMap, setLiveBusMap] = useState({})
+  const [rashDrivingActive, setRashDrivingActive] = useState(false)
 
   // Fetch school details from backend using schoolID from signup
   useEffect(() => {
@@ -109,11 +114,56 @@ const ParentDashboard = () => {
     fetchSchool()
   }, [])
 
+  // Fetch live bus data (location) on mount and then every 5 seconds
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchLiveBuses = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/bus')
+        const map = {}
+        res.data.forEach((bus) => {
+          if (bus.busId) {
+            map[bus.busId] = bus
+          }
+        })
+        if (isMounted) {
+          setLiveBusMap(map)
+
+          const childBus = map[CHILD_BUS_ID]
+          const isRash =
+            !!(childBus && (childBus.rashDriving === true || childBus.harshDriving === true))
+          setRashDrivingActive(isRash)
+        }
+      } catch (err) {
+        console.warn('Failed to load live bus data for parent dashboard', err)
+      }
+    }
+
+    fetchLiveBuses()
+    const intervalId = setInterval(fetchLiveBuses, 2000)
+
+    return () => {
+      isMounted = false
+      clearInterval(intervalId)
+    }
+  }, [])
+
+  const getChildBusLocation = () => {
+    const live = liveBusMap[CHILD_BUS_ID]
+
+    if (live && live.location && typeof live.location.lat === 'number' && typeof live.location.lng === 'number') {
+      return [live.location.lat, live.location.lng]
+    }
+
+    return defaultBusLocation
+  }
+
   const childData = {
     name: user?.childName || "Child",
     school: schoolData.schoolName || "—",
     schoolID: schoolData.schoolID || user?.schoolID || "—",
-    bus: schoolData.busNumber || "—",
+    bus: CHILD_BUS_ID,
     status: "On Bus",
     pickupTime: "7:45 AM",
     dropTime: "3:30 PM",
@@ -171,9 +221,9 @@ const ParentDashboard = () => {
             </CardHeader>
             <CardContent className="p-0">
               <div className="h-[500px] rounded-b-lg overflow-hidden border border-t-0 border-slate-200">
-                <MapContainer center={busLocation} zoom={13} style={{ height:"100%", width:"100%" }}>
+                <MapContainer center={getChildBusLocation()} zoom={13} style={{ height:"100%", width:"100%" }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <Marker position={busLocation}>
+                  <Marker position={getChildBusLocation()}>
                     <Popup>School Bus 🚌</Popup>
                   </Marker>
                 </MapContainer>
@@ -350,9 +400,9 @@ const ParentDashboard = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="h-[400px] rounded-b-lg overflow-hidden border border-t-0 border-slate-200">
-                  <MapContainer center={busLocation} zoom={13} style={{ height:"100%", width:"100%" }}>
+                  <MapContainer center={getChildBusLocation()} zoom={13} style={{ height:"100%", width:"100%" }}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <Marker position={busLocation}>
+                    <Marker position={getChildBusLocation()}>
                       <Popup>School Bus 🚌</Popup>
                     </Marker>
                   </MapContainer>
@@ -376,6 +426,28 @@ const ParentDashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Live harsh driving alert popup on Alerts page */}
+      {activePage === 'Alerts' && rashDrivingActive && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="fixed bottom-6 right-6 z-40 max-w-sm"
+        >
+          <div className="rounded-xl border-2 border-red-300 bg-red-50 shadow-lg p-4 flex items-start gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white text-lg">
+              🚨
+            </div>
+            <div>
+              <p className="font-semibold text-red-800">Harsh driving detected</p>
+              <p className="text-sm text-red-700 mt-1">
+                BUS330 is currently flagged for rash / harsh driving. We are monitoring this trip closely.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {featureOverlay && (
         <div

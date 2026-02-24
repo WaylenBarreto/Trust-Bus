@@ -8,8 +8,14 @@ const BusSchema = new mongoose.Schema({
   },
 
   location: {
-    lat: Number,
-    lng: Number,
+    lat: {
+      type: Number,
+      default: 0,
+    },
+    lng: {
+      type: Number,
+      default: 0,
+    },
   },
 
   speedKmph: {
@@ -20,6 +26,16 @@ const BusSchema = new mongoose.Schema({
   passengerCount: {
     type: Number,
     default: 0,
+  },
+
+  rashDriving: {
+    type: Boolean,
+    default: false,
+  },
+
+  hardBrake: {
+    type: Boolean,
+    default: false,
   },
 
   updatedAt: {

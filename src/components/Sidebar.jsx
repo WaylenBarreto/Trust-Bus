@@ -21,7 +21,17 @@ const Sidebar = ({ activePage, setActivePage, userType = "public" }) => {
     { id: "Safety Reports", label: "Safety Reports", icon: "📋" },
   ]
 
-  const menuItems = userType === "parent" ? parentMenuItems : publicMenuItems
+  const schoolMenuItems = [
+    { id: "Trip Control", label: "Trip Console", icon: "🕒" },
+    { id: "Overview", label: "Overview", icon: "📊" },
+  ]
+
+  const menuItems =
+    userType === "parent"
+      ? parentMenuItems
+      : userType === "school"
+      ? schoolMenuItems
+      : publicMenuItems
 
   const handleLogout = () => navigate("/login")
 

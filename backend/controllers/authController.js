@@ -216,7 +216,14 @@ const loginSchool = async (req, res) => {
 
     res.json({
       token,
-      school: { name: school.schoolName, bus: school.busNumber, role: 'school', schoolID: school.schoolID }
+      school: {
+        name: school.schoolName,
+        bus: school.busNumber,
+        role: 'school',
+        schoolID: school.schoolID,
+        driverName: school.driverName,
+        driverNumber: school.driverNumber,
+      }
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
