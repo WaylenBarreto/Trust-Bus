@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import Logo from "./Logo"
 
-const Sidebar = ({ activePage, setActivePage, userType = "public" }) => {
+const Sidebar = ({ activePage, setActivePage, userType = "public", menuBadges = {} }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -63,21 +63,26 @@ const Sidebar = ({ activePage, setActivePage, userType = "public" }) => {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition
-                ${
-                  activePage === item.id
-                    ? "bg-green-600 text-white shadow"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-            >
-              <span className="text-xl">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
+          {menuItems.map((item) => {
+            const showBadge = !!menuBadges[item.id]
+            const isActive = activePage === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition
+                ${isActive ? "bg-green-600 text-white shadow" : "text-gray-700 hover:bg-gray-100"}`}
+              >
+                <span className="flex items-center gap-3">
+                  <span className="text-xl">{item.icon}</span>
+                  {item.label}
+                </span>
+                {showBadge && (
+                  <span className="inline-flex h-2.5 w-2.5 rounded-full bg-red-500 shadow-sm" />
+                )}
+              </button>
+            )
+          })}
         </nav>
 
         {/* Logout */}

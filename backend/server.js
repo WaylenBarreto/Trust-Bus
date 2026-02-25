@@ -10,6 +10,7 @@ const safetyReportRoutes = require("./routes/safetyReportRoutes");
 const driverRatingRoutes = require("./routes/driverRatingRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const busRoutes = require("./routes/busRoutes");
+const tripRoutes = require("./routes/tripRoutes");
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use("/api/reports", safetyReportRoutes);
 app.use("/api/ratings", driverRatingRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/bus", busRoutes); // ⭐ ADD THIS
+app.use("/api/trips", tripRoutes);
 
 
 // ---------------- MongoDB ----------------

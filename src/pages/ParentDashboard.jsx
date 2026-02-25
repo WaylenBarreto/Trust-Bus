@@ -97,6 +97,11 @@ const ParentDashboard = () => {
   const streamRef = useRef(null)
   const [liveBusMap, setLiveBusMap] = useState({})
   const [rashDrivingActive, setRashDrivingActive] = useState(false)
+  const [alerts, setAlerts] = useState([])
+  const [toastAlerts, setToastAlerts] = useState([])
+  const [hasUnreadAlerts, setHasUnreadAlerts] = useState(false)
+  const prevChildBusRef = useRef(null)
+  const prevEtaRef = useRef(null)
 
   // Fetch school details from backend using schoolID from signup
   useEffect(() => {
@@ -169,6 +174,92 @@ const ParentDashboard = () => {
     dropTime: "3:30 PM",
   }
 
+  // Live alert generation for child's bus (harsh braking + ETA)
+  useEffect(() => {
+    const childBus = liveBusMap[CHILD_BUS_ID]
+    if (!childBus) return
+
+    const prev = prevChildBusRef.current
+    prevChildBusRef.current = childBus
+
+    const updates = []
+
+    // Harsh / rash driving
+    const prevHarsh = prev ? (prev.hardBrake || prev.rashDriving) : false
+    const currentHarsh = childBus.hardBrake || childBus.rashDriving
+    if (currentHarsh && !prevHarsh) {
+      updates.push({
+        id: `harsh-${Date.now()}`,
+        type: 'danger',
+        text: 'Harsh braking detected on your child’s bus (BUS330).',
+        time: new Date().toLocaleTimeString(),
+      })
+    }
+
+    // ETA based on distance to school
+    const loc = childBus.location
+    const speed = typeof childBus.speedKmph === 'number' ? childBus.speedKmph : 0
+    let etaLabel = null
+    if (
+      loc &&
+      typeof loc.lat === 'number' &&
+      typeof loc.lng === 'number' &&
+      speed > 0
+    ) {
+      const toRad = (deg) => (deg * Math.PI) / 180
+      const R = 6371
+      const dLat = toRad(defaultBusLocation[0] - loc.lat)
+      const dLon = toRad(defaultBusLocation[1] - loc.lng)
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(loc.lat)) *
+          Math.cos(toRad(defaultBusLocation[0])) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2)
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+      const distanceKm = R * c
+      const etaMinutes = (distanceKm / speed) * 60
+      if (Number.isFinite(etaMinutes) && etaMinutes > 0) {
+        const rounded = Math.max(1, Math.round(etaMinutes))
+        etaLabel = `${rounded} min`
+      }
+    }
+
+    if (etaLabel) {
+      const prevEta = prevEtaRef.current
+      if (prevEta && prevEta !== etaLabel) {
+        updates.push({
+          id: `eta-${Date.now()}`,
+          type: 'info',
+          text: `Updated ETA for BUS330: ${etaLabel} (was ${prevEta}).`,
+          time: new Date().toLocaleTimeString(),
+        })
+      }
+      prevEtaRef.current = etaLabel
+    }
+
+    if (updates.length) {
+      setAlerts((current) => [...updates, ...current].slice(0, 20))
+      setHasUnreadAlerts(true)
+
+      updates.forEach((u) => {
+        const toastId = `${u.id}-toast`
+        const toast = { ...u, id: toastId }
+        setToastAlerts((cur) => [...cur, toast])
+        setTimeout(() => {
+          setToastAlerts((cur) => cur.filter((t) => t.id !== toastId))
+        }, 5000)
+      })
+    }
+  }, [liveBusMap])
+
+  // Clear red dot when parent opens Alerts tab
+  useEffect(() => {
+    if (activePage === 'Alerts') {
+      setHasUnreadAlerts(false)
+    }
+  }, [activePage])
+
   const handleReportSubmit = async (e) => {
   e.preventDefault()
 
@@ -204,10 +295,23 @@ const ParentDashboard = () => {
                 <CardTitle className="text-slate-800">Parent Alerts</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 pt-5">
-                <AlertCard type="success" icon="✔" title="Child boarded bus at 7:50 AM" />
-                <AlertCard type="warning" icon="⏰" title="Bus running late" />
-                <AlertCard type="danger" icon="🚨" title="Harsh braking detected" />
-                <AlertCard type="info" icon="📍" title="Bus reached school" />
+                {alerts.length === 0 ? (
+                  <>
+                    <AlertCard type="success" icon="✔" title="Child boarded bus at 7:50 AM" />
+                    <AlertCard type="warning" icon="⏰" title="Bus running late" />
+                    <AlertCard type="danger" icon="🚨" title="Harsh braking detected" />
+                    <AlertCard type="info" icon="📍" title="Bus reached school" />
+                  </>
+                ) : (
+                  alerts.map((a) => (
+                    <AlertCard
+                      key={a.id}
+                      type={a.type === 'danger' ? 'danger' : a.type === 'warning' ? 'warning' : 'info'}
+                      icon={a.type === 'danger' ? '🚨' : a.type === 'warning' ? '⚠️' : '🔔'}
+                      title={`${a.text} (${a.time})`}
+                    />
+                  ))
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -416,7 +520,12 @@ const ParentDashboard = () => {
 
   return (
     <div className="flex h-screen bg-slate-100">
-      <Sidebar activePage={activePage} setActivePage={setActivePage} userType="parent" />
+      <Sidebar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        userType="parent"
+        menuBadges={{ Alerts: hasUnreadAlerts }}
+      />
 
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
@@ -427,26 +536,27 @@ const ParentDashboard = () => {
         </main>
       </div>
 
-      {/* Live harsh driving alert popup on Alerts page */}
-      {activePage === 'Alerts' && rashDrivingActive && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          className="fixed bottom-6 right-6 z-40 max-w-sm"
-        >
-          <div className="rounded-xl border-2 border-red-300 bg-red-50 shadow-lg p-4 flex items-start gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white text-lg">
-              🚨
-            </div>
-            <div>
-              <p className="font-semibold text-red-800">Harsh driving detected</p>
-              <p className="text-sm text-red-700 mt-1">
-                BUS330 is currently flagged for rash / harsh driving. We are monitoring this trip closely.
-              </p>
-            </div>
-          </div>
-        </motion.div>
+      {/* Top-right live toast alerts for parent (harsh braking, ETA) */}
+      {toastAlerts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-3 max-w-sm w-full">
+          {toastAlerts.map((n) => (
+            <motion.div
+              key={n.id}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 40 }}
+              className="rounded-xl border px-4 py-3 shadow-lg flex items-start gap-3 bg-white/95"
+            >
+              <span className="mt-0.5 text-lg">
+                {n.type === 'danger' ? '🚨' : n.type === 'warning' ? '⚠️' : '🔔'}
+              </span>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-800">{n.text}</p>
+                <p className="text-[11px] text-slate-500 mt-1">{n.time}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       )}
 
       {featureOverlay && (

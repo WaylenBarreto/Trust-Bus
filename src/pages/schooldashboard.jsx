@@ -5,6 +5,7 @@ import TopBar from "../components/TopBar"
 import { Button } from "../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
+import { createTrip } from "../api/auth"
 
 const formatDuration = (ms) => {
   if (!ms || ms < 0) return "00:00:00"
@@ -60,7 +61,7 @@ const SchoolDashboard = () => {
     setElapsedMs(0)
   }
 
-  const handleEndTrip = () => {
+  const handleEndTrip = async () => {
     if (tripStatus !== "running" || !tripStart) return
     const now = Date.now()
     const duration = now - tripStart
@@ -78,6 +79,23 @@ const SchoolDashboard = () => {
       },
       ...prev.slice(0, 9),
     ])
+
+    // Persist to backend
+    try {
+      await createTrip({
+        schoolName: driverInfo.schoolName,
+        schoolID: driverInfo.schoolID,
+        busNumber: driverInfo.busNumber,
+        driverName: driverInfo.driverName,
+        driverNumber: driverInfo.driverNumber,
+        startedAt: new Date(tripStart).toISOString(),
+        endedAt: new Date(now).toISOString(),
+        durationMs: duration,
+      })
+    } catch (err) {
+      // Non-blocking: log but keep UI responsive
+      console.error("Failed to save trip", err)
+    }
   }
 
   const currentDurationLabel =

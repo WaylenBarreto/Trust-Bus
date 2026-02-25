@@ -2,8 +2,9 @@ import axios from 'axios'
 import { motion } from 'framer-motion'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import bus204Img from '../assets/bus204.jpg'
 import BusInspection from '../components/BusInspection'
 import BusRating from '../components/BusRating'
 import Chatbot from "../components/Chatbot"
@@ -30,7 +31,7 @@ const redMarkerIcon = L.divIcon({
 
 const dummyBuses = [
   { id:"BUS101", route:"Vasco → PCCE → Panjim", name:"Vasco Express", status:"On Time", eta:"5 min", location:[15.3893,73.8149], crowdLevel:"High", feeStudentHalf: 25, image:"https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=400&h=220&fit=crop" },
-  { id:"BUS204", route:"Margao → PCCE", name:"Margao Line", status:"Delayed", eta:"15 min", location:[15.2993,73.9570], crowdLevel:"Low", feeStudentHalf: 30, image:"https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400&h=220&fit=crop" },
+  { id:"BUS204", route:"Margao → PCCE", name:"Margao Line", status:"Delayed", eta:"15 min", location:[15.2993,73.9570], crowdLevel:"Low", feeStudentHalf: 30, image:bus204Img },
   { id:"BUS330", route:"Verna → PCCE", name:"Verna Shuttle", status:"Arriving Soon", eta:"2 min", location:[15.3500,73.9000], crowdLevel:"Medium", feeStudentHalf: 20, image:"https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=400&h=220&fit=crop" }
 ]
 
@@ -60,6 +61,27 @@ const getCrowdLevelFromPassengers = (count) => {
   return "High"
 }
 
+const notificationStyles = {
+  info: 'bg-blue-100 border-blue-200',
+  success: 'bg-green-100 border-green-200',
+  warning: 'bg-yellow-100 border-yellow-200',
+  danger: 'bg-red-100 border-red-200',
+}
+
+// Haversine distance between two lat/lng pairs in kilometers
+const haversineKm = (lat1, lon1, lat2, lon2) => {
+  const toRad = (deg) => (deg * Math.PI) / 180
+  const R = 6371 // km
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
 /** Small green bus icon: green body, white windows, blue wheels (facing right) */
 const BusIcon = ({ className = '' }) => (
   <svg className={className} viewBox="0 0 56 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
@@ -78,6 +100,10 @@ const Dashboard = () => {
   const [selectedBus, setSelectedBus] = useState(null)
   const [showRating, setShowRating] = useState(false)
   const [liveBusMap, setLiveBusMap] = useState({})
+  const [notifications, setNotifications] = useState([])
+  const [toastNotifications, setToastNotifications] = useState([])
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
+  const prevBus330Ref = useRef(null)
 
   const mapCenter = [15.2993, 74.1240]
   const userLocationVerna = [15.358, 73.892] // User location: Verna (inland, South Goa)
@@ -120,6 +146,145 @@ const Dashboard = () => {
     return bus.location
   }
 
+  // Build an enhanced list of buses where BUS330 gets live values from backend
+  const buses = useMemo(() => {
+    const live330 = liveBusMap['BUS330']
+
+    return dummyBuses.map((bus) => {
+      if (bus.id !== 'BUS330' || !live330) return bus
+
+      const hasLocation =
+        live330.location &&
+        typeof live330.location.lat === 'number' &&
+        typeof live330.location.lng === 'number'
+
+      const speed = typeof live330.speedKmph === 'number' ? live330.speedKmph : 0
+      let etaLabel = bus.eta
+      let status = bus.status
+
+      if (hasLocation && speed > 0) {
+        const distanceKm = haversineKm(
+          live330.location.lat,
+          live330.location.lng,
+          userLocationVerna[0],
+          userLocationVerna[1]
+        )
+        const etaMinutes = (distanceKm / speed) * 60
+        if (Number.isFinite(etaMinutes) && etaMinutes > 0) {
+          const rounded = Math.max(1, Math.round(etaMinutes))
+          etaLabel = `${rounded} min`
+
+          if (rounded <= 3) status = "Arriving Soon"
+          else if (rounded <= 10) status = "On Time"
+          else status = "Delayed"
+        }
+      }
+
+      const passengerCount =
+        typeof live330.passengerCount === 'number' ? live330.passengerCount : null
+      const dynamicCrowdLevel =
+        passengerCount !== null
+          ? getCrowdLevelFromPassengers(passengerCount)
+          : bus.crowdLevel
+
+      return {
+        ...bus,
+        location: hasLocation
+          ? [live330.location.lat, live330.location.lng]
+          : bus.location,
+        eta: etaLabel,
+        status,
+        passengerCount,
+        crowdLevel: dynamicCrowdLevel,
+      }
+    })
+  }, [liveBusMap, userLocationVerna])
+
+  // Generate live notifications when BUS330 changes (crowd, status, ETA, harsh braking)
+  useEffect(() => {
+    const bus330 = buses.find((b) => b.id === 'BUS330')
+    if (!bus330) return
+
+    const prev = prevBus330Ref.current
+    prevBus330Ref.current = bus330
+
+    if (!prev) return
+
+    const updates = []
+
+    // Crowd / passenger change
+    if (bus330.crowdLevel !== prev.crowdLevel && bus330.crowdLevel && prev.crowdLevel) {
+      const direction =
+        (bus330.passengerCount ?? 0) > (prev.passengerCount ?? 0) ? 'increased' : 'dropped'
+      updates.push({
+        id: `crowd-${Date.now()}`,
+        type: bus330.crowdLevel === 'High' ? 'danger' : bus330.crowdLevel === 'Medium' ? 'warning' : 'info',
+        text: `BUS330 crowd level ${direction} from ${prev.crowdLevel} to ${bus330.crowdLevel}${bus330.passengerCount != null ? ` (${bus330.passengerCount} passengers)` : ''}.`,
+        time: new Date().toLocaleTimeString(),
+      })
+    }
+
+    // Status change (On Time / Arriving Soon / Delayed)
+    if (bus330.status !== prev.status) {
+      const type =
+        bus330.status === 'Delayed'
+          ? 'warning'
+          : bus330.status === 'Arriving Soon'
+          ? 'success'
+          : 'info'
+      updates.push({
+        id: `status-${Date.now()}`,
+        type,
+        text: `BUS330 status updated to "${bus330.status}" (ETA ${bus330.eta}).`,
+        time: new Date().toLocaleTimeString(),
+      })
+    }
+
+    // ETA change
+    if (bus330.eta !== prev.eta) {
+      updates.push({
+        id: `eta-${Date.now()}`,
+        type: 'info',
+        text: `BUS330 ETA adjusted from ${prev.eta} to ${bus330.eta} based on live GPS.`,
+        time: new Date().toLocaleTimeString(),
+      })
+    }
+
+    // Harsh braking / rashDriving change
+    const prevHarsh = prev.hardBrake || prev.rashDriving
+    const currentHarsh = bus330.hardBrake || bus330.rashDriving
+    if (currentHarsh && !prevHarsh) {
+      updates.push({
+        id: `harsh-${Date.now()}`,
+        type: 'danger',
+        text: 'BUS330 harsh braking detected. Driver assistance has been notified.',
+        time: new Date().toLocaleTimeString(),
+      })
+    }
+
+    if (updates.length) {
+      setNotifications((current) => [...updates, ...current].slice(0, 20))
+      setHasUnreadNotifications(true)
+
+      // Push toast notifications (auto-dismiss after 5s)
+      updates.forEach((u) => {
+        const toastId = `${u.id}-toast`
+        const toast = { ...u, id: toastId }
+        setToastNotifications((cur) => [...cur, toast])
+        setTimeout(() => {
+          setToastNotifications((cur) => cur.filter((t) => t.id !== toastId))
+        }, 5000)
+      })
+    }
+  }, [buses])
+
+  // Clear red dot when user opens Notifications tab
+  useEffect(() => {
+    if (activePage === 'Notifications') {
+      setHasUnreadNotifications(false)
+    }
+  }, [activePage])
+
   const renderContent = () => {
     switch (activePage) {
 
@@ -129,7 +294,7 @@ const Dashboard = () => {
             <Card>
               <CardHeader><CardTitle>Bus Status</CardTitle></CardHeader>
               <CardContent className="grid md:grid-cols-3 gap-6">
-                {dummyBuses.map((bus, i) => {
+                {buses.map((bus, i) => {
                   const style = getStatusStyle(bus.status)
                   return (
                     <motion.div
@@ -179,7 +344,7 @@ const Dashboard = () => {
               <CardContent className="h-[600px]">
                 <MapContainer center={mapCenter} zoom={11} style={{height:"100%"}}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
-                  {dummyBuses.map(bus=>(
+                  {buses.map(bus=>(
                     <Marker key={bus.id} position={getBusLocation(bus)}>
                       <Popup>{bus.id}</Popup>
                     </Marker>
@@ -196,10 +361,24 @@ const Dashboard = () => {
             <Card>
               <CardHeader><CardTitle>Alerts & Notifications</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <div className="p-4 bg-green-100 rounded-lg border border-green-200">✔ BUS101 – On time, arriving in 5 min</div>
-                <div className="p-4 bg-yellow-100 rounded-lg border border-yellow-200">⏰ BUS204 – Delayed by ~15 min on Margao → PCCE</div>
-                <div className="p-4 bg-blue-100 rounded-lg border border-blue-200">📍 Route update: Verna → PCCE service running as scheduled</div>
-                <div className="p-4 bg-gray-100 rounded-lg border border-gray-200">ℹ No disruptions on Vasco → Panjim corridor</div>
+                {notifications.length === 0 ? (
+                  <>
+                    <div className="p-4 bg-green-100 rounded-lg border border-green-200">✔ BUS101 – On time, arriving in 5 min</div>
+                    <div className="p-4 bg-yellow-100 rounded-lg border border-yellow-200">⏰ BUS204 – Delayed by ~15 min on Margao → PCCE</div>
+                    <div className="p-4 bg-blue-100 rounded-lg border border-blue-200">📍 Route update: Verna → PCCE service running as scheduled</div>
+                    <div className="p-4 bg-gray-100 rounded-lg border border-gray-200">ℹ No disruptions on Vasco → Panjim corridor</div>
+                  </>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`p-4 rounded-lg border flex items-center justify-between ${notificationStyles[n.type] || notificationStyles.info}`}
+                    >
+                      <span>{n.text}</span>
+                      <span className="ml-4 text-xs text-gray-500 whitespace-nowrap">{n.time}</span>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
@@ -240,7 +419,7 @@ const Dashboard = () => {
                     <Marker position={userLocationVerna} icon={redMarkerIcon}>
                       <Popup><strong>Verna</strong><br />Your location</Popup>
                     </Marker>
-                    {dummyBuses.map((bus) => (
+                    {buses.map((bus) => (
                       <Marker key={bus.id} position={getBusLocation(bus)}>
                         <Popup><strong>{bus.id}</strong><br />{bus.route}<br />ETA: {bus.eta}</Popup>
                       </Marker>
@@ -270,14 +449,8 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dummyBuses.map((bus) => {
+                    {buses.map((bus) => {
                       const style = getStatusStyle(bus.status)
-                      const live = liveBusMap[bus.id]
-                      const passengerCount = bus.id === 'BUS330' && live ? live.passengerCount : null
-                      const dynamicCrowdLevel =
-                        bus.id === 'BUS330' && passengerCount !== null
-                          ? getCrowdLevelFromPassengers(passengerCount)
-                          : bus.crowdLevel
                       return (
                         <TableRow
                           key={bus.id}
@@ -291,12 +464,12 @@ const Dashboard = () => {
                             <span className={`font-semibold ${style.text}`}>{bus.eta}</span>
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getCrowdStyle(dynamicCrowdLevel)}`}>
-                              {dynamicCrowdLevel}
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${getCrowdStyle(bus.crowdLevel)}`}>
+                              {bus.crowdLevel}
                             </span>
                           </TableCell>
                           <TableCell>
-                            {passengerCount !== null ? passengerCount : '—'}
+                            {bus.passengerCount != null ? bus.passengerCount : '—'}
                           </TableCell>
                           <TableCell>
                             <span className={`font-semibold ${style.text}`}>{bus.status}</span>
@@ -317,12 +490,39 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex h-screen">
-        <Sidebar activePage={activePage} setActivePage={setActivePage}/>
+        <Sidebar
+          activePage={activePage}
+          setActivePage={setActivePage}
+          menuBadges={{ Notifications: hasUnreadNotifications }}
+        />
         <div className="flex-1 flex flex-col">
           <TopBar/>
           <main className="flex-1 overflow-y-auto p-6">{renderContent()}</main>
         </div>
       </div>
+
+      {/* Top-right live toasts for BUS330 */}
+      {toastNotifications.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-3 max-w-sm w-full">
+          {toastNotifications.map((n) => (
+            <motion.div
+              key={n.id}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 40 }}
+              className={`rounded-xl border px-4 py-3 shadow-lg flex items-start gap-3 bg-white/95 ${notificationStyles[n.type] || ''}`}
+            >
+              <span className="mt-0.5 text-lg">
+                {n.type === 'danger' ? '🚨' : n.type === 'warning' ? '⚠️' : '🔔'}
+              </span>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-800">{n.text}</p>
+                <p className="text-[11px] text-slate-500 mt-1">{n.time}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {selectedBus && !showRating && (
         <BusInspection bus={selectedBus} onClose={()=>setSelectedBus(null)} onShowRating={()=>setShowRating(true)} />

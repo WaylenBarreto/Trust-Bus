@@ -57,3 +57,10 @@ export const forgotPassword = (data) =>
 
 export const resetPassword = (data) => 
   API.post("/auth/reset-password", data);
+
+// ==========================================
+// TRIPS (School driver portal)
+// ==========================================
+
+export const createTrip = (data) =>
+  API.post("/trips", data);
