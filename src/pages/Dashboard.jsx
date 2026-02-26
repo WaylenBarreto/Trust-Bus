@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Popup, TileLayer, Polyline } from 'react-leaflet'
 import bus204Img from '../assets/bus204.jpg'
 import BusInspection from '../components/BusInspection'
 import BusRating from '../components/BusRating'
@@ -100,9 +100,11 @@ const Dashboard = () => {
   const [selectedBus, setSelectedBus] = useState(null)
   const [showRating, setShowRating] = useState(false)
   const [liveBusMap, setLiveBusMap] = useState({})
+  const [bus330Path, setBus330Path] = useState([])
   const [notifications, setNotifications] = useState([])
   const [toastNotifications, setToastNotifications] = useState([])
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
+  const [criticalAlert, setCriticalAlert] = useState(null)
   const prevBus330Ref = useRef(null)
 
   const mapCenter = [15.2993, 74.1240]
@@ -123,6 +125,23 @@ const Dashboard = () => {
         })
         if (isMounted) {
           setLiveBusMap(map)
+
+          const live330 = map['BUS330']
+          if (
+            live330 &&
+            live330.location &&
+            typeof live330.location.lat === 'number' &&
+            typeof live330.location.lng === 'number'
+          ) {
+            const nextPoint = [live330.location.lat, live330.location.lng]
+            setBus330Path((prev) => {
+              const last = prev[prev.length - 1]
+              if (last && last[0] === nextPoint[0] && last[1] === nextPoint[1]) {
+                return prev
+              }
+              return [...prev, nextPoint]
+            })
+          }
         }
       } catch (err) {
         console.warn('Failed to load live bus data', err)
@@ -187,6 +206,9 @@ const Dashboard = () => {
           ? getCrowdLevelFromPassengers(passengerCount)
           : bus.crowdLevel
 
+      const harshCount = typeof live330.harshbraking === 'number' ? live330.harshbraking : 0
+      const rashCount = typeof live330.rashdriving === 'number' ? live330.rashdriving : 0
+
       return {
         ...bus,
         location: hasLocation
@@ -196,6 +218,10 @@ const Dashboard = () => {
         status,
         passengerCount,
         crowdLevel: dynamicCrowdLevel,
+        harshbraking: harshCount,
+        rashdriving: rashCount,
+        rashDrivingFlag: !!live330.rashDriving,
+        harshDrivingFlag: !!(live330.harshDriving || live330.hardBrake),
       }
     })
   }, [liveBusMap, userLocationVerna])
@@ -250,15 +276,43 @@ const Dashboard = () => {
       })
     }
 
-    // Harsh braking / rashDriving change
-    const prevHarsh = prev.hardBrake || prev.rashDriving
-    const currentHarsh = bus330.hardBrake || bus330.rashDriving
-    if (currentHarsh && !prevHarsh) {
+    // Harsh braking / rash driving incidents based on database counts
+    const prevHarshTotal = (prev.harshbraking ?? 0) + (prev.rashdriving ?? 0)
+    const currentHarshTotal = (bus330.harshbraking ?? 0) + (bus330.rashdriving ?? 0)
+    if (currentHarshTotal > prevHarshTotal) {
+      const newIncidents = currentHarshTotal - prevHarshTotal
+      const message = `New driving incident${
+        newIncidents > 1 ? 's' : ''
+      } detected on BUS330: harsh braking / rash driving (${currentHarshTotal} total).`
+
       updates.push({
         id: `harsh-${Date.now()}`,
         type: 'danger',
-        text: 'BUS330 harsh braking detected. Driver assistance has been notified.',
+        text: message,
         time: new Date().toLocaleTimeString(),
+      })
+
+      setCriticalAlert({
+        title: 'Driving Behaviour Alert',
+        message,
+      })
+    }
+
+    // Immediate rash driving alert based on live flag (boolean)
+    const prevRashFlag = !!prev.rashDrivingFlag
+    const currentRashFlag = !!bus330.rashDrivingFlag
+    if (currentRashFlag && !prevRashFlag) {
+      const message = 'Rash driving detected on BUS330. Please review driver behaviour.'
+      updates.push({
+        id: `rash-${Date.now()}`,
+        type: 'danger',
+        text: message,
+        time: new Date().toLocaleTimeString(),
+      })
+
+      setCriticalAlert({
+        title: 'Rash Driving Alert',
+        message,
       })
     }
 
@@ -344,6 +398,12 @@ const Dashboard = () => {
               <CardContent className="h-[600px]">
                 <MapContainer center={mapCenter} zoom={11} style={{height:"100%"}}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+                  {bus330Path.length > 1 && (
+                    <Polyline
+                      positions={bus330Path}
+                      pathOptions={{ color: 'blue', weight: 4 }}
+                    />
+                  )}
                   {buses.map(bus=>(
                     <Marker key={bus.id} position={getBusLocation(bus)}>
                       <Popup>{bus.id}</Popup>
@@ -419,6 +479,12 @@ const Dashboard = () => {
                     <Marker position={userLocationVerna} icon={redMarkerIcon}>
                       <Popup><strong>Verna</strong><br />Your location</Popup>
                     </Marker>
+                    {bus330Path.length > 1 && (
+                      <Polyline
+                        positions={bus330Path}
+                        pathOptions={{ color: 'blue', weight: 4 }}
+                      />
+                    )}
                     {buses.map((bus) => (
                       <Marker key={bus.id} position={getBusLocation(bus)}>
                         <Popup><strong>{bus.id}</strong><br />{bus.route}<br />ETA: {bus.eta}</Popup>
@@ -521,6 +587,28 @@ const Dashboard = () => {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* Center screen popup for harsh braking / rash driving */}
+      {criticalAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 mx-4">
+            <h2 className="text-lg font-semibold mb-2 text-red-700 flex items-center gap-2">
+              <span>🚨</span>
+              {criticalAlert.title}
+            </h2>
+            <p className="text-sm text-gray-700 mb-4">{criticalAlert.message}</p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setCriticalAlert(null)}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

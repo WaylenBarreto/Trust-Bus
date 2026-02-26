@@ -96,6 +96,7 @@ const ParentDashboard = () => {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const [liveBusMap, setLiveBusMap] = useState({})
+  const [driverPerformance, setDriverPerformance] = useState(null)
   const [rashDrivingActive, setRashDrivingActive] = useState(false)
   const [alerts, setAlerts] = useState([])
   const [toastAlerts, setToastAlerts] = useState([])
@@ -174,7 +175,24 @@ const ParentDashboard = () => {
     dropTime: "3:30 PM",
   }
 
-  // Live alert generation for child's bus (harsh braking + ETA)
+  // Driver performance (harsh braking, overspeeding, punctuality) with auto-refresh
+  useEffect(() => {
+    const fetchDriverPerformance = async () => {
+      try {
+        const res = await axios.get(`http://localhost:5000/api/driver-performance/${CHILD_BUS_ID}`)
+        setDriverPerformance(res.data)
+      } catch (err) {
+        console.warn('Failed to load driver performance data', err)
+      }
+    }
+
+    fetchDriverPerformance()
+    const intervalId = setInterval(fetchDriverPerformance, 1000)
+
+    return () => clearInterval(intervalId)
+  }, [])
+
+  // Live alert generation for child's bus (harsh braking + rash driving + ETA)
   useEffect(() => {
     const childBus = liveBusMap[CHILD_BUS_ID]
     if (!childBus) return
@@ -184,14 +202,21 @@ const ParentDashboard = () => {
 
     const updates = []
 
-    // Harsh / rash driving
+    // Harsh / rash driving (boolean flags)
     const prevHarsh = prev ? (prev.hardBrake || prev.rashDriving) : false
     const currentHarsh = childBus.hardBrake || childBus.rashDriving
     if (currentHarsh && !prevHarsh) {
+      const harshCount = driverPerformance?.harshbraking ?? 0
+      const rashCount = driverPerformance?.rashdriving ?? 0
+      const totalIncidents = harshCount + rashCount
+
       updates.push({
         id: `harsh-${Date.now()}`,
         type: 'danger',
-        text: 'Harsh braking detected on your child’s bus (BUS330).',
+        text:
+          totalIncidents > 0
+            ? `Unsafe driving detected on your child’s bus (BUS330): harsh braking / rash driving (${totalIncidents} incidents recorded).`
+            : 'Unsafe driving detected on your child’s bus (BUS330): harsh braking / rash driving.',
         time: new Date().toLocaleTimeString(),
       })
     }
@@ -337,16 +362,39 @@ const ParentDashboard = () => {
         )
 
       case 'Driver Performance':
-        return (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-slate-800">Driver Performance</h2>
-            <div className="grid md:grid-cols-3 gap-4">
-              <StatCard label="Overspeeding" value="0 incidents" variant="good" />
-              <StatCard label="Harsh Braking" value="2 incidents" variant="caution" />
-              <StatCard label="Punctuality" value="95%" variant="good" />
+        {
+          const harshBraking = driverPerformance?.harshbraking ?? 0
+          const overspeeding = driverPerformance?.rashdriving ?? 0
+          const totalEvents = harshBraking + overspeeding
+          const punctualityRaw = 100 - totalEvents * 5
+          const punctuality = Math.max(0, punctualityRaw)
+
+          const perfVariant =
+            totalEvents === 0 ? 'good' : totalEvents <= 3 ? 'caution' : 'neutral'
+
+          return (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-slate-800">Driver Performance</h2>
+              <div className="grid md:grid-cols-3 gap-4">
+                <StatCard
+                  label="Overspeeding"
+                  value={`${overspeeding} incident${overspeeding === 1 ? '' : 's'}`}
+                  variant={overspeeding === 0 ? 'good' : 'caution'}
+                />
+                <StatCard
+                  label="Harsh Braking"
+                  value={`${harshBraking} incident${harshBraking === 1 ? '' : 's'}`}
+                  variant={harshBraking === 0 ? 'good' : 'caution'}
+                />
+                <StatCard
+                  label="Punctuality"
+                  value={`${punctuality.toFixed(0)}%`}
+                  variant={perfVariant}
+                />
+              </div>
             </div>
-          </div>
-        )
+          )
+        }
 
       case 'Safety Reports':
         return (
