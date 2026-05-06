@@ -1,135 +1,250 @@
-<<<<<<< HEAD
-# Trust Bus Dashboard
+TrustBus Dashboard 🚍
 
-A responsive dashboard layout for Trust Bus built with React, Vite, and Tailwind CSS.
+A privacy-first AI-powered smart transport dashboard built using React, Vite, Tailwind CSS, IoT, and Computer Vision AI. TrustBus enhances transparency, safety, and reliability in school and public transportation systems through real-time monitoring, intelligent detection, and smart analytics. 
 
-## Features
 
-- 📱 Responsive design (mobile, tablet, desktop)
-- 🎨 Clean, minimal UI with rounded cards and shadows
-- 🧭 Left sidebar navigation (Home, Bus Status, Routes, My ID)
-- 👤 Top bar with user name and logout button
-- 🎯 Main content area with placeholder
+---
 
-## Getting Started
+🌟 Features
 
-### Install Dependencies
+🧠 AI-Powered Monitoring
 
-```bash
+👦 Child Emotion & Bullying Detection using AI models
+
+🎥 YOLOv8-based passenger and face detection
+
+🔒 Automatic face blurring for privacy preservation
+
+🚨 Violence / abnormal activity detection
+
+📊 Crowd density monitoring and occupancy analytics
+
+
+
+---
+
+🌐 IoT & Smart Hardware Integration
+
+📍 Real-time GPS Tracking for live bus location updates
+
+👥 Passenger Counting using IR Sensors
+
+⚡ ESP32-S3 Microcontroller Integration
+
+🚦 Accelerometer-based harsh braking & rash driving detection
+
+📡 Real-time sensor data transmission to dashboard
+
+🔔 Smart safety alerts and notifications
+
+
+
+---
+
+📱 Dashboard Features
+
+📱 Fully responsive design (Mobile, Tablet, Desktop)
+
+🎨 Modern minimal UI with Tailwind CSS
+
+🧭 Sidebar navigation (Home, Bus Status, Routes, Analytics, My ID)
+
+👤 User profile & authentication section
+
+📈 Live analytics and transport monitoring
+
+🚌 Bus occupancy and route visualization
+
+⭐ Feedback and rating system
+
+
+
+---
+
+🛠️ Technologies Used
+
+Frontend
+
+⚛️ React 18
+
+⚡ Vite 5
+
+🎨 Tailwind CSS 3
+
+📦 PostCSS
+
+🔧 Autoprefixer
+
+
+
+---
+
+Artificial Intelligence & Computer Vision
+
+🧠 YOLOv8 for:
+
+Face Detection
+
+Passenger Detection
+
+Crowd Monitoring
+
+Bullying / abnormal activity detection
+
+
+🎭 Privacy-preserving face blurring system
+
+📹 Hypermovement & suspicious activity analysis
+
+🤖 OpenCV-based video processing pipeline
+
+
+
+---
+
+IoT & Embedded Systems
+
+📡 ESP32-S3 microcontroller
+
+🌐 GPS module for real-time location tracking
+
+👥 IR Sensors for passenger counting
+
+📈 Accelerometer sensor for harsh driving detection
+
+🔌 Real-time hardware-to-dashboard communication
+
+
+
+---
+
+🚀 Getting Started
+
+Install Dependencies
+
 npm install
-```
 
-### Run Development Server
+Run Development Server
 
-```bash
 npm run dev
-```
 
-The application will be available at `http://localhost:5173`
+The application will be available at:
 
-### Build for Production
+http://localhost:5173
 
-```bash
+
+---
+
+Build for Production
+
 npm run build
-```
 
-### Preview Production Build
+Preview Production Build
 
-```bash
 npm run preview
-```
 
-## Project Structure
 
-```
-trust-bus-dashboard/
+---
+
+📂 Project Structure
+
+trustbus-dashboard/
+│
 ├── src/
 │   ├── components/
 │   │   ├── Sidebar.jsx
-│   │   └── TopBar.jsx
+│   │   ├── TopBar.jsx
+│   │   ├── BusAnalytics.jsx
+│   │   ├── PassengerMonitor.jsx
+│   │   └── AlertsPanel.jsx
+│   │
+│   ├── pages/
+│   │   ├── Dashboard.jsx
+│   │   ├── Routes.jsx
+│   │   ├── BusStatus.jsx
+│   │   └── Analytics.jsx
+│   │
+│   ├── services/
+│   │   ├── gpsService.js
+│   │   ├── sensorService.js
+│   │   └── aiDetectionService.js
+│   │
 │   ├── App.jsx
 │   ├── main.jsx
 │   └── index.css
+│
+├── public/
 ├── index.html
 ├── package.json
 ├── vite.config.js
 ├── tailwind.config.js
 └── postcss.config.js
-```
 
-## Technologies Used
 
-- React 18
-- Vite 5
-- Tailwind CSS 3
-- PostCSS
-- Autoprefixer
+---
 
-=======
-# Trust Bus Dashboard
+🔐 Privacy-First Approach
 
-A responsive dashboard layout for Trust Bus built with React, Vite, and Tailwind CSS.
+TrustBus focuses heavily on commuter privacy:
 
-## Features
+🔒 Face blurring before storage/transmission
 
-- 📱 Responsive design (mobile, tablet, desktop)
-- 🎨 Clean, minimal UI with rounded cards and shadows
-- 🧭 Left sidebar navigation (Home, Bus Status, Routes, My ID)
-- 👤 Top bar with user name and logout button
-- 🎯 Main content area with placeholder
+🧍 Anonymous passenger analytics
 
-## Getting Started
+📷 Privacy-preserving snapshots
 
-### Install Dependencies
+🛡️ Secure cloud communication
 
-```bash
-npm install
-```
 
-### Run Development Server
 
-```bash
-npm run dev
-```
+---
 
-The application will be available at `http://localhost:5173`
+📌 Core Objectives
 
-### Build for Production
+Improve student and commuter safety
 
-```bash
-npm run build
-```
+Increase public transport transparency
 
-### Preview Production Build
+Reduce unsafe driving incidents
 
-```bash
-npm run preview
-```
+Enable smart real-time monitoring
 
-## Project Structure
+Build trust in public transportation systems
 
-```
-trust-bus-dashboard/
-├── src/
-│   ├── components/
-│   │   ├── Sidebar.jsx
-│   │   └── TopBar.jsx
-│   ├── App.jsx
-│   ├── main.jsx
-│   └── index.css
-├── index.html
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-└── postcss.config.js
-```
 
-## Technologies Used
 
-- React 18
-- Vite 5
-- Tailwind CSS 3
-- PostCSS
-- Autoprefixer
+---
 
->>>>>>> 4f3f6ea6c533369cc724f792361e360e86825758
+📈 Future Scope
+
+☁️ Cloud analytics integration
+
+📲 Mobile companion application
+
+🤝 AI-powered predictive safety alerts
+
+🗺️ Smart route optimization
+
+🧠 Advanced behavior analytics
+
+
+
+---
+
+👨‍💻 Team Members
+
+Waylen Barreto
+
+Eknath Divkar
+
+Karthik Sheregar
+
+
+
+---
+
+🚍 TrustBus
+
+Transparency + Reliability + Privacy
+
+Building safer, smarter, and more reliable transportation systems for the future. 
