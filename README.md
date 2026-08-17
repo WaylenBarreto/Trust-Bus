@@ -1,4 +1,4 @@
-<img width="1600" height="725" alt="image" src="https://github.com/user-attachments/assets/4e0ed86c-e039-4a66-8dc2-eb0ec12bd510" /><img width="1280" height="960" alt="WhatsApp Image 2026-08-17 at 4 02 34 PM" src="https://github.com/user-attachments/assets/a3d2f7e5-11b6-4d49-ac84-467669c753ae" />TrustBus Dashboard 🚍
+TrustBus Dashboard 🚍
 
 A privacy-first AI-powered smart transport dashboard built using React, Vite, Tailwind CSS, IoT, and Computer Vision AI. TrustBus enhances transparency, safety, and reliability in school and public transportation systems through real-time monitoring, intelligent detection, and smart analytics. 
 
